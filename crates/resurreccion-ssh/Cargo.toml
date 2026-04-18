@@ -1,0 +1,16 @@
+[package]
+name = "resurreccion-ssh"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+resurreccion-proto = { path = "../resurreccion-proto" }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+ulid = { workspace = true }
+
+[lints]
+workspace = true

@@ -19,6 +19,8 @@ Versioning: [Semantic Versioning](https://semver.org/) pre-1.0 model (see IMPLEM
 
 ## [Unreleased]
 
+- feat(ssh): SSH remote client (resurreccion-ssh crate, dry-run forward)
+
 ### Added
 - feat(bundles): snapshot bundle packaging (resurreccion-bundles crate)
 - feat(replay): session replay data model from event log (resurreccion-replay crate)

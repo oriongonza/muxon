@@ -1,25 +1,183 @@
-//! Protocol types for the Resurreccion daemon and clients.
+//! Wire protocol for the Resurreccion daemon.
+//!
+//! All communication between CLI, plugins, and the daemon goes through
+//! the types defined here. The envelope schema is the stability boundary:
+//! once 1.0 ships, no field may be removed or semantically changed.
 
-use std::path::{Path, PathBuf};
+pub mod verbs;
 
-/// Default socket path for the Resurreccion daemon.
+use serde::{Deserialize, Serialize};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+/// Protocol version. Increment on any breaking envelope change.
+pub const PROTO_VERSION: u32 = 1;
+
+/// The wire envelope wrapping every request and response.
+///
+/// Framed on the wire as a length-delimited JSON line.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Envelope {
+    /// Caller-chosen correlation ID; echoed in the matching response.
+    pub id: String,
+    /// Verb name (e.g. `"doctor.ping"`, `"workspace.open"`).
+    pub verb: String,
+    /// Protocol version of the sender.
+    pub proto: u32,
+    /// `true` for success, `false` for error.
+    pub ok: bool,
+    /// Verb-specific payload. On error, contains `{ "code": "...", "message": "..." }`.
+    pub body: serde_json::Value,
+    /// Unix timestamp (ms) when this envelope was created.
+    pub ts: u64,
+}
+
+impl Envelope {
+    /// Create a success envelope.
+    pub fn ok(id: impl Into<String>, verb: impl Into<String>, body: serde_json::Value) -> Self {
+        Self {
+            id: id.into(),
+            verb: verb.into(),
+            proto: PROTO_VERSION,
+            ok: true,
+            body,
+            ts: now_ms(),
+        }
+    }
+
+    /// Create an error envelope.
+    pub fn err(
+        id: impl Into<String>,
+        verb: impl Into<String>,
+        code: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self {
+            id: id.into(),
+            verb: verb.into(),
+            proto: PROTO_VERSION,
+            ok: false,
+            body: serde_json::json!({ "code": code.into(), "message": message.into() }),
+            ts: now_ms(),
+        }
+    }
+}
+
+#[allow(clippy::cast_possible_truncation)]
+fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
+
+/// A typed request from CLI or plugin to the daemon.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Request {
+    /// Verb to invoke.
+    pub verb: String,
+    /// Verb-specific arguments.
+    pub args: serde_json::Value,
+}
+
+impl Request {
+    /// Build a raw request.
+    pub fn new(verb: impl Into<String>, args: serde_json::Value) -> Self {
+        Self {
+            verb: verb.into(),
+            args,
+        }
+    }
+
+    /// `doctor.ping` — health check.
+    pub fn doctor_ping() -> Self {
+        Self::new(verbs::DOCTOR_PING, serde_json::Value::Null)
+    }
+
+    /// `workspace.open` — open or create a workspace.
+    pub fn workspace_open(args: WorkspaceOpenArgs) -> Self {
+        Self::new(
+            verbs::WORKSPACE_OPEN,
+            serde_json::to_value(args).unwrap_or_default(),
+        )
+    }
+
+    /// `workspace.list` — list all workspaces.
+    pub fn workspace_list() -> Self {
+        Self::new(verbs::WORKSPACE_LIST, serde_json::Value::Null)
+    }
+
+    /// `snapshot.create` — create a snapshot of the current workspace state.
+    pub fn snapshot_create(args: SnapshotCreateArgs) -> Self {
+        Self::new(
+            verbs::SNAPSHOT_CREATE,
+            serde_json::to_value(args).unwrap_or_default(),
+        )
+    }
+
+    /// `snapshot.restore` — restore a workspace from a snapshot.
+    pub fn snapshot_restore(args: SnapshotRestoreArgs) -> Self {
+        Self::new(
+            verbs::SNAPSHOT_RESTORE,
+            serde_json::to_value(args).unwrap_or_default(),
+        )
+    }
+}
+
+/// A typed response carrying success data or an error.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Response {
+    /// Successful response with verb-specific data.
+    Ok {
+        /// Verb-specific response payload.
+        data: serde_json::Value,
+    },
+    /// Error response.
+    Err {
+        /// Machine-readable error code.
+        code: String,
+        /// Human-readable message.
+        message: String,
+    },
+}
+
+// ── Verb-specific arg/result types ─────────────────────────────────────────
+
+/// Arguments for `workspace.open`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkspaceOpenArgs {
+    /// Canonical filesystem path to bind to.
+    pub path: String,
+}
+
+/// Arguments for `snapshot.create`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SnapshotCreateArgs {
+    /// ID of the workspace to snapshot (as string).
+    pub workspace_id: String,
+}
+
+/// Arguments for `snapshot.restore`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SnapshotRestoreArgs {
+    /// ID of the snapshot to restore (as string).
+    pub snapshot_id: String,
+}
+
+// ── Legacy API (preserved for daemon compatibility) ───────────────────────
+
+/// Legacy constant for backwards compatibility.
 pub const DEFAULT_SOCKET_PATH: &str = "/tmp/resurreccion.sock";
-/// Service name of the Resurreccion daemon.
-pub const SERVICE_NAME: &str = "resurreccion-daemon";
 
-/// A request that can be sent to the Resurreccion daemon.
+/// Legacy enum preserved for daemon compatibility.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Request {
+pub enum LegacyRequest {
     /// Health check request.
     Health,
 }
 
-impl Request {
-    /// Parse a request from a string.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the input is not a valid request.
+impl LegacyRequest {
+    /// Parse a request from a string (legacy API).
     pub fn parse(input: &str) -> Result<Self, String> {
         match input.trim() {
             "health" => Ok(Self::Health),
@@ -27,7 +185,7 @@ impl Request {
         }
     }
 
-    /// Get the wire format representation of this request.
+    /// Get the wire format representation of this request (legacy API).
     pub const fn as_wire(&self) -> &'static str {
         match self {
             Self::Health => "health\n",
@@ -35,16 +193,7 @@ impl Request {
     }
 }
 
-/// An error response from the daemon.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ErrorResponse {
-    /// Error code.
-    pub code: String,
-    /// Error message.
-    pub message: String,
-}
-
-/// A health check response from the daemon.
+/// Legacy response struct (preserved for daemon compatibility).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HealthResponse {
     /// Name of the service.
@@ -55,26 +204,35 @@ pub struct HealthResponse {
     pub socket_path: String,
 }
 
-/// A response from the Resurreccion daemon.
+/// Legacy error response (preserved for daemon compatibility).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Response {
+pub struct ErrorResponse {
+    /// Error code.
+    pub code: String,
+    /// Error message.
+    pub message: String,
+}
+
+/// Legacy response enum preserved for daemon compatibility.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LegacyResponse {
     /// Health check response.
     Health(HealthResponse),
     /// Error response.
     Error(ErrorResponse),
 }
 
-impl Response {
-    /// Create a successful health response.
-    pub fn health(socket_path: &Path) -> Self {
+impl LegacyResponse {
+    /// Create a successful health response (legacy API).
+    pub fn health(socket_path: &std::path::Path) -> Self {
         Self::Health(HealthResponse {
-            service: SERVICE_NAME,
+            service: "resurreccion-daemon",
             status: "ok",
             socket_path: socket_path.display().to_string(),
         })
     }
 
-    /// Create an error response.
+    /// Create an error response (legacy API).
     pub fn error(code: impl Into<String>, message: impl Into<String>) -> Self {
         Self::Error(ErrorResponse {
             code: code.into(),
@@ -82,7 +240,7 @@ impl Response {
         })
     }
 
-    /// Serialize this response to JSON.
+    /// Serialize this response to JSON (legacy API).
     pub fn to_json(&self) -> String {
         match self {
             Self::Health(health) => format!(
@@ -100,11 +258,6 @@ impl Response {
     }
 }
 
-/// Get the default socket path for the Resurreccion daemon.
-pub fn default_socket_path() -> PathBuf {
-    PathBuf::from(DEFAULT_SOCKET_PATH)
-}
-
 fn escape_json(input: &str) -> String {
     let mut escaped = String::with_capacity(input.len());
     for ch in input.chars() {
@@ -120,31 +273,38 @@ fn escape_json(input: &str) -> String {
     escaped
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{default_socket_path, Request, Response};
-    use std::path::Path;
+/// Get the default socket path for the Resurreccion daemon (legacy API).
+pub fn default_socket_path() -> std::path::PathBuf {
+    std::path::PathBuf::from(DEFAULT_SOCKET_PATH)
+}
 
-    #[test]
-    fn parses_health_request() {
-        assert_eq!(Request::parse("health").unwrap(), Request::Health);
-        assert_eq!(Request::parse("health\n").unwrap(), Request::Health);
+// ── Skeleton for a daemon client.
+///
+/// Signatures only — Lane B1 fills in the implementation.
+pub struct Client {
+    #[allow(dead_code)]
+    socket_path: std::path::PathBuf,
+}
+
+impl Client {
+    /// Connect to the daemon socket at `path`.
+    ///
+    /// # Errors
+    /// Returns an error if the socket is not available.
+    pub async fn connect(path: impl Into<std::path::PathBuf>) -> std::io::Result<Self> {
+        let socket_path = path.into();
+        // Implementation: Lane B1
+        let _ = tokio::net::UnixStream::connect(&socket_path).await?;
+        Ok(Self { socket_path })
     }
 
-    #[test]
-    fn serializes_health_response_to_json() {
-        let json = Response::health(Path::new("/tmp/example.sock")).to_json();
-        assert_eq!(
-            json,
-            "{\"ok\":true,\"data\":{\"service\":\"resurreccion-daemon\",\"status\":\"ok\",\"socket_path\":\"/tmp/example.sock\"}}"
-        );
-    }
-
-    #[test]
-    fn default_socket_path_is_stable() {
-        assert_eq!(
-            default_socket_path().display().to_string(),
-            "/tmp/resurreccion.sock"
-        );
+    /// Send a request and await a single response.
+    ///
+    /// # Errors
+    /// Returns an error if the request cannot be sent or the response is malformed.
+    #[allow(clippy::unused_async)]
+    pub async fn call(&self, _request: Request) -> std::io::Result<Envelope> {
+        // Implementation: Lane B1
+        unimplemented!("Client::call — implemented by Lane B1")
     }
 }

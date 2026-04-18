@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use resurreccion_proto::{default_socket_path, Request, Response};
+use resurreccion_proto::{default_socket_path, LegacyRequest, LegacyResponse};
 use rt_events::EventBus;
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -143,29 +143,29 @@ fn handle_connection(
         .map_err(|error| format!("failed to write response: {error}"))
 }
 
-fn response_for_request(request_line: &str, socket_path: &Path, bus: &EventBus) -> Response {
-    match Request::parse(request_line) {
-        Ok(Request::Health) => {
+fn response_for_request(request_line: &str, socket_path: &Path, bus: &EventBus) -> LegacyResponse {
+    match LegacyRequest::parse(request_line) {
+        Ok(LegacyRequest::Health) => {
             bus.emit(HealthRequestHandled {
                 socket_path: socket_path.display().to_string(),
             });
-            Response::health(socket_path)
+            LegacyResponse::health(socket_path)
         }
         Err(error) => {
             bus.emit(BadRequestObserved {
                 socket_path: socket_path.display().to_string(),
                 message: error.clone(),
             });
-            Response::error("bad_request", error)
+            LegacyResponse::error("bad_request", error)
         }
     }
 }
 
-fn request_health(socket_path: &Path) -> Result<Response, String> {
+fn request_health(socket_path: &Path) -> Result<LegacyResponse, String> {
     let mut stream = UnixStream::connect(socket_path)
         .map_err(|error| format!("failed to connect to {}: {error}", socket_path.display()))?;
     stream
-        .write_all(Request::Health.as_wire().as_bytes())
+        .write_all(LegacyRequest::Health.as_wire().as_bytes())
         .map_err(|error| format!("failed to send health request: {error}"))?;
 
     let mut buffer = String::new();
@@ -174,7 +174,7 @@ fn request_health(socket_path: &Path) -> Result<Response, String> {
         .map_err(|error| format!("failed to read health response: {error}"))?;
 
     if buffer.contains("\"ok\":true") {
-        Ok(Response::health(socket_path))
+        Ok(LegacyResponse::health(socket_path))
     } else {
         Err(format!(
             "daemon returned unexpected response: {}",
@@ -226,7 +226,7 @@ struct BadRequestObserved {
 #[cfg(test)]
 mod tests {
     use super::{response_for_request, BadRequestObserved, HealthRequestHandled};
-    use resurreccion_proto::Response;
+    use resurreccion_proto::LegacyResponse;
     use rt_events::EventBus;
     use std::cell::RefCell;
     use std::path::Path;
@@ -244,7 +244,7 @@ mod tests {
         let response = response_for_request("health\n", Path::new("/tmp/test.sock"), &bus);
 
         assert_eq!(*events.borrow(), 1);
-        assert!(matches!(response, Response::Health(_)));
+        assert!(matches!(response, LegacyResponse::Health(_)));
     }
 
     #[test]
@@ -259,6 +259,6 @@ mod tests {
         let response = response_for_request("bogus\n", Path::new("/tmp/test.sock"), &bus);
 
         assert_eq!(errors.borrow().len(), 1);
-        assert!(matches!(response, Response::Error(_)));
+        assert!(matches!(response, LegacyResponse::Error(_)));
     }
 }

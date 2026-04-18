@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use resurreccion_proto::{default_socket_path, Request};
+use resurreccion_proto::{default_socket_path, LegacyRequest};
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
@@ -90,7 +90,7 @@ fn request_health(socket_path: &PathBuf) -> Result<String, String> {
     let mut stream = UnixStream::connect(socket_path)
         .map_err(|error| format!("failed to connect to {}: {error}", socket_path.display()))?;
     stream
-        .write_all(Request::Health.as_wire().as_bytes())
+        .write_all(LegacyRequest::Health.as_wire().as_bytes())
         .map_err(|error| format!("failed to send health request: {error}"))?;
 
     let mut response = String::new();

@@ -1,4 +1,4 @@
-#![allow(missing_docs, missing_crate_level_docs)]
+#![allow(missing_docs, rustdoc::missing_crate_level_docs)]
 
 //! CLI for resurreccion workspace manager.
 

@@ -898,6 +898,7 @@ name = "resurreccion-daemon"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "clap",
  "directories",
  "resurreccion-core",
  "resurreccion-dir",

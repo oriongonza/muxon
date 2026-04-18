@@ -377,11 +377,11 @@ impl Handler for SnapshotRestoreHandler {
 
         // Create a manifest structure for the planner
         let manifest = SnapshotManifest {
-            workspace_id: snapshot.workspace_id.clone(),
+            workspace_id: snapshot.workspace_id,
             layout: manifest_value
                 .get("layout")
                 .cloned()
-                .unwrap_or(serde_json::json!({})),
+                .unwrap_or_else(|| serde_json::json!({})),
         };
 
         let capabilities = self.mux.capabilities();
@@ -484,7 +484,7 @@ impl Handler for EventsTailHandler {
             .body
             .get("after_id")
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+            .map(std::string::ToString::to_string);
 
         match self
             .store

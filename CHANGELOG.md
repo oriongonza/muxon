@@ -18,6 +18,7 @@ Versioning: [Semantic Versioning](https://semver.org/) pre-1.0 model (see IMPLEM
 ## [Unreleased]
 
 ### Added
+- `resurreccion-claude`: ClaudeAigent implementing Aigent trait via Anthropic Messages API.
 - `resurreccion-proto`: shell.capture, shell.restore, aigent.generate, aigent.list verb constants.
 - `resurreccion-shell`: ShellCapture type, ShellAdapter trait, ProcShellAdapter stub.
 - `resurreccion-shell`: ProcShellAdapter captures cwd, cmdline, env from /proc filesystem.

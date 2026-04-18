@@ -20,6 +20,7 @@ Versioning: [Semantic Versioning](https://semver.org/) pre-1.0 model (see IMPLEM
 ## [Unreleased]
 
 ### Added
+- feat(bundles): snapshot bundle packaging (resurreccion-bundles crate)
 - feat(replay): session replay data model from event log (resurreccion-replay crate)
 - feat(emacs): Emacs editor adapter (resurreccion-emacs crate)
 - feat(store): blob content-addressed storage (put/get, BLAKE3 hash, idempotent)

@@ -1,4 +1,6 @@
-use resurreccion_shell::{ProcShellAdapter, ShellAdapter, ShellCapture};
+#![allow(missing_docs)]
+
+use resurreccion_shell::{ProcShellAdapter, ShellCapture};
 
 #[test]
 fn shell_capture_serializes() {

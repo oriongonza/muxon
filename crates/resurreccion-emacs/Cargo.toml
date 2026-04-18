@@ -8,3 +8,6 @@ publish = false
 workspace = true
 
 [dependencies]
+resurreccion-editor = { path = "../resurreccion-editor" }
+serde_json.workspace = true
+anyhow.workspace = true

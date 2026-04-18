@@ -19,6 +19,7 @@ Versioning: [Semantic Versioning](https://semver.org/) pre-1.0 model (see IMPLEM
 ## [Unreleased]
 
 ### Added
+- feat(emacs): Emacs editor adapter (resurreccion-emacs crate)
 - feat(store): blob content-addressed storage (put/get, BLAKE3 hash, idempotent)
 - feat(daemon): events subscription handler (EVENTS_SUBSCRIBE verb, poll-based)
 - feat(tui): tree view data model for workspace/runtime/snapshot hierarchy

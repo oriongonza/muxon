@@ -1,4 +1,4 @@
-use resurreccion_shell::{ProcShellAdapter, ShellAdapter, ShellCapture};
+use resurreccion_shell::{ProcShellAdapter, ShellCapture};
 
 #[test]
 fn shell_capture_serializes() {

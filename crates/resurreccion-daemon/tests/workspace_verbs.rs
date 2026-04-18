@@ -159,7 +159,7 @@ fn workspace_resolve_or_create_is_idempotent() {
 }
 
 #[test]
-#[ignore] // git2::Repository::discover can hang on some systems; integration tests cover this
+#[ignore = "git2::Repository::discover can hang on some systems; integration tests cover this"]
 fn workspace_open_returns_workspace_row() {
     let (_temp, store) = create_test_store();
     let work_dir = TempDir::new().expect("failed to create temp dir");

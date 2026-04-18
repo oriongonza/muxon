@@ -2,9 +2,10 @@
 
 use clap::Parser;
 use resurreccion_daemon::{
-    Dispatcher, EventsTailHandler, Handler, SnapshotCreateHandler, SnapshotGetHandler,
-    SnapshotListHandler, SnapshotRestoreHandler, WorkspaceCreateHandler, WorkspaceGetHandler,
-    WorkspaceListHandler, WorkspaceOpenHandler, WorkspaceResolveOrCreateHandler,
+    CapabilityHandler, Dispatcher, EventsTailHandler, Handler, SnapshotCreateHandler,
+    SnapshotGetHandler, SnapshotListHandler, SnapshotRestoreHandler, WorkspaceCreateHandler,
+    WorkspaceGetHandler, WorkspaceListHandler, WorkspaceOpenHandler,
+    WorkspaceResolveOrCreateHandler,
 };
 use resurreccion_mux::Mux;
 use resurreccion_proto::verbs;
@@ -120,6 +121,9 @@ async fn main() -> anyhow::Result<()> {
                 verbs::EVENTS_TAIL,
                 Arc::new(EventsTailHandler::new(store.clone())),
             );
+
+            // Register capability negotiation handler
+            dispatcher.register(verbs::CAPABILITY_NEGOTIATE, Arc::new(CapabilityHandler));
 
             let dispatcher = Arc::new(dispatcher);
 

@@ -1,4 +1,4 @@
-//! Integration tests for ClaudeAigent implementation.
+//! Integration tests for `ClaudeAigent` implementation.
 
 use std::env;
 

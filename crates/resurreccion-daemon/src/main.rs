@@ -1,11 +1,14 @@
 //! Resurreccion daemon — the async runtime for the Resurreccion system.
 
 use resurreccion_daemon::{
-    Dispatcher, Handler, WorkspaceCreateHandler, WorkspaceGetHandler, WorkspaceListHandler,
-    WorkspaceOpenHandler, WorkspaceResolveOrCreateHandler,
+    Dispatcher, EventsTailHandler, Handler, SnapshotCreateHandler, SnapshotGetHandler,
+    SnapshotListHandler, SnapshotRestoreHandler, WorkspaceCreateHandler, WorkspaceGetHandler,
+    WorkspaceListHandler, WorkspaceOpenHandler, WorkspaceResolveOrCreateHandler,
 };
+use resurreccion_mux::Mux;
 use resurreccion_proto::verbs;
 use resurreccion_store::Store;
+use resurreccion_zellij::ZellijMux;
 use std::sync::{Arc, Mutex};
 
 struct DoctorPingHandler;
@@ -36,6 +39,9 @@ async fn main() -> anyhow::Result<()> {
     let store = Store::open(&store_path)?;
     let store = Arc::new(Mutex::new(store));
 
+    // Initialize Mux
+    let mux: Arc<dyn Mux> = Arc::new(ZellijMux);
+
     // Create dispatcher
     let mut dispatcher = Dispatcher::new();
 
@@ -63,6 +69,30 @@ async fn main() -> anyhow::Result<()> {
     dispatcher.register(
         verbs::WORKSPACE_OPEN,
         Arc::new(WorkspaceOpenHandler::new(store.clone())),
+    );
+
+    // Register snapshot handlers
+    dispatcher.register(
+        verbs::SNAPSHOT_CREATE,
+        Arc::new(SnapshotCreateHandler::new(store.clone(), mux.clone())),
+    );
+    dispatcher.register(
+        verbs::SNAPSHOT_RESTORE,
+        Arc::new(SnapshotRestoreHandler::new(store.clone(), mux.clone())),
+    );
+    dispatcher.register(
+        verbs::SNAPSHOT_LIST,
+        Arc::new(SnapshotListHandler::new(store.clone())),
+    );
+    dispatcher.register(
+        verbs::SNAPSHOT_GET,
+        Arc::new(SnapshotGetHandler::new(store.clone())),
+    );
+
+    // Register events handlers
+    dispatcher.register(
+        verbs::EVENTS_TAIL,
+        Arc::new(EventsTailHandler::new(store.clone())),
     );
 
     let dispatcher = Arc::new(dispatcher);

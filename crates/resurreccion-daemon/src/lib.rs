@@ -17,7 +17,8 @@ mod bus_test;
 pub use bus::setup_store_subscriber;
 pub use dispatch::{Dispatcher, Handler};
 pub use handlers::{
-    WorkspaceCreateHandler, WorkspaceGetHandler, WorkspaceListHandler, WorkspaceOpenHandler,
-    WorkspaceResolveOrCreateHandler,
+    EventsTailHandler, SnapshotCreateHandler, SnapshotGetHandler, SnapshotListHandler,
+    SnapshotRestoreHandler, WorkspaceCreateHandler, WorkspaceGetHandler, WorkspaceListHandler,
+    WorkspaceOpenHandler, WorkspaceResolveOrCreateHandler,
 };
 pub use runtime::single_instance_guard;

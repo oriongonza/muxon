@@ -30,7 +30,9 @@ fn workspace_list_handler_returns_empty_list() {
     let mut dispatcher = Dispatcher::new();
     dispatcher.register(
         verbs::WORKSPACE_LIST,
-        Arc::new(resurreccion_daemon::WorkspaceListHandler::new(store.clone())),
+        Arc::new(resurreccion_daemon::WorkspaceListHandler::new(
+            store.clone(),
+        )),
     );
 
     let request = Envelope::ok("test-id", verbs::WORKSPACE_LIST, serde_json::json!(null));
@@ -58,7 +60,9 @@ fn workspace_create_then_get() {
     let mut dispatcher = Dispatcher::new();
     dispatcher.register(
         verbs::WORKSPACE_CREATE,
-        Arc::new(resurreccion_daemon::WorkspaceCreateHandler::new(store.clone())),
+        Arc::new(resurreccion_daemon::WorkspaceCreateHandler::new(
+            store.clone(),
+        )),
     );
     dispatcher.register(
         verbs::WORKSPACE_GET,
@@ -110,7 +114,9 @@ fn workspace_resolve_or_create_is_idempotent() {
     let mut dispatcher = Dispatcher::new();
     dispatcher.register(
         verbs::WORKSPACE_RESOLVE_OR_CREATE,
-        Arc::new(resurreccion_daemon::WorkspaceResolveOrCreateHandler::new(store.clone())),
+        Arc::new(resurreccion_daemon::WorkspaceResolveOrCreateHandler::new(
+            store.clone(),
+        )),
     );
 
     // First call
@@ -159,7 +165,9 @@ fn workspace_open_returns_workspace_row() {
     let mut dispatcher = Dispatcher::new();
     dispatcher.register(
         verbs::WORKSPACE_OPEN,
-        Arc::new(resurreccion_daemon::WorkspaceOpenHandler::new(store.clone())),
+        Arc::new(resurreccion_daemon::WorkspaceOpenHandler::new(
+            store.clone(),
+        )),
     );
 
     let req = Envelope::ok(

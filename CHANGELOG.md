@@ -4,6 +4,12 @@ All notable changes are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/) pre-1.0 model (see IMPLEMENTATION_PLAN.md).
 
+## [0.6.0] - 2026-04-18
+
+Completes Phases 1–5: aigent/shell/editor traits, OpenAI/Claude/Neovim/Emacs adapters,
+capability handshake, events subscription, blob store, SSH remote, tree TUI, Zellij plugin,
+time-travel, search, replay, federation, bundles, headless/CI mode. 178 tests pass.
+
 ## [0.1.0] - 2026-04-18
 
 ### Added

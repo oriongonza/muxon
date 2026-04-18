@@ -1323,6 +1323,18 @@ name = "resurreccion-emacs"
 version = "0.1.0"
 
 [[package]]
+name = "resurreccion-headless"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "resurreccion-proto",
+ "resurreccion-store",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "resurreccion-mux"
 version = "0.1.0"
 dependencies = [
@@ -1370,6 +1382,16 @@ dependencies = [
 [[package]]
 name = "resurreccion-remote"
 version = "0.1.0"
+
+[[package]]
+name = "resurreccion-search"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "rusqlite",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "resurreccion-shell"

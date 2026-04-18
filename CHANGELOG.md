@@ -15,3 +15,4 @@ Versioning: [Semantic Versioning](https://semver.org/) pre-1.0 model (see IMPLEM
 - `resurreccion-daemon`: Tokio async runtime with Envelope protocol support, verb dispatch system, single-instance guard, and graceful SIGTERM/SIGINT shutdown with 2s drain timeout.
 - `resurreccion-cli`: muxon binary with clap subcommands (doctor, workspace, save, restore, tree, events), shell completions (bash, zsh, fish).
 - `resurreccion-zellij`: `ZellijMux` implementing `Mux` trait via zellij CLI (discover, create, attach, capture, subscribe_topology).
+- `resurreccion-dir`: Path canonicalization (`canonicalize`), git detection (`detect_git`), and binding key composition (`compose_binding_key`) with `PathScoped` and `RepoScoped` scopes.

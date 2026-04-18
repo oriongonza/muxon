@@ -41,3 +41,15 @@ fn request_serializes() {
     let json = serde_json::to_string(&req).unwrap();
     assert!(json.contains("doctor.ping"));
 }
+
+#[test]
+#[allow(clippy::assertions_on_constants)]
+fn shell_capture_verb_nonempty() {
+    assert!(!verbs::SHELL_CAPTURE.is_empty());
+}
+
+#[test]
+#[allow(clippy::assertions_on_constants)]
+fn aigent_generate_verb_nonempty() {
+    assert!(!verbs::AIGENT_GENERATE.is_empty());
+}

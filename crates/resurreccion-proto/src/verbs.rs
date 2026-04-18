@@ -50,3 +50,6 @@ pub const AIGENT_GENERATE: &str = "aigent.generate";
 
 /// List available aigents.
 pub const AIGENT_LIST: &str = "aigent.list";
+
+/// Negotiate capabilities with the daemon.
+pub const CAPABILITY_NEGOTIATE: &str = "capability.negotiate";

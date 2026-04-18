@@ -13,7 +13,10 @@ fn test_canonicalize_returns_utf8_path() {
     let result = canonicalize(path).expect("canonicalize should succeed");
 
     assert!(result.is_absolute());
-    assert_eq!(result.as_str(), path.canonicalize().unwrap().to_string_lossy());
+    assert_eq!(
+        result.as_str(),
+        path.canonicalize().unwrap().to_string_lossy()
+    );
 }
 
 #[test]
@@ -40,10 +43,8 @@ fn test_distinct_paths_produce_distinct_keys() {
     let tempdir1 = TempDir::new().expect("failed to create tempdir");
     let tempdir2 = TempDir::new().expect("failed to create tempdir");
 
-    let path1 =
-        canonicalize(tempdir1.path()).expect("canonicalize tempdir1 should succeed");
-    let path2 =
-        canonicalize(tempdir2.path()).expect("canonicalize tempdir2 should succeed");
+    let path1 = canonicalize(tempdir1.path()).expect("canonicalize tempdir1 should succeed");
+    let path2 = canonicalize(tempdir2.path()).expect("canonicalize tempdir2 should succeed");
 
     let key1 = compose_binding_key(&path1, None, Scope::PathScoped);
     let key2 = compose_binding_key(&path2, None, Scope::PathScoped);

@@ -20,3 +20,8 @@ Eventing is split in two:
 
 That split matters. `rt-events` decouples subsystems without pretending to be a
 network protocol, while the socket protocol remains explicit and inspectable.
+
+## Zellij backend version pin
+
+The `resurreccion-zellij` backend is tested against Zellij 0.40.x CLI output format.
+`zellij list-sessions` output and `zellij action dump-layout` format may change in future releases.

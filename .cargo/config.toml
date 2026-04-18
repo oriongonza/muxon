@@ -1,0 +1,7 @@
+[alias]
+xfmt = "fmt --all"
+xfmt-check = "fmt --all -- --check"
+xclippy = "clippy --workspace --all-targets --all-features -- -D warnings"
+xtest = "nextest run --workspace"
+xcheck = "check --workspace --all-targets"
+xbuild = "build --workspace"

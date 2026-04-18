@@ -5,7 +5,7 @@ use resurreccion_planner::{
 };
 use tempfile::TempDir;
 
-/// Test: plan_capture returns a single node with CAPTURE_LAYOUT verb.
+/// Test: `plan_capture` returns a single node with `CAPTURE_LAYOUT` verb.
 #[test]
 fn test_plan_capture_returns_single_node() {
     let cap = Capability::empty();
@@ -13,7 +13,8 @@ fn test_plan_capture_returns_single_node() {
 
     assert_eq!(plan.nodes.len(), 1, "plan should have exactly one node");
     assert_eq!(
-        plan.nodes[0].verb, verbs::CAPTURE_LAYOUT,
+        plan.nodes[0].verb,
+        verbs::CAPTURE_LAYOUT,
         "node verb should be CAPTURE_LAYOUT"
     );
     assert_eq!(
@@ -23,7 +24,7 @@ fn test_plan_capture_returns_single_node() {
     );
 }
 
-/// Test: plan_restore returns a single node with RESTORE_LAYOUT verb.
+/// Test: `plan_restore` returns a single node with `RESTORE_LAYOUT` verb.
 #[test]
 fn test_plan_restore_returns_single_node() {
     let manifest = SnapshotManifest {
@@ -35,7 +36,8 @@ fn test_plan_restore_returns_single_node() {
 
     assert_eq!(plan.nodes.len(), 1, "plan should have exactly one node");
     assert_eq!(
-        plan.nodes[0].verb, verbs::RESTORE_LAYOUT,
+        plan.nodes[0].verb,
+        verbs::RESTORE_LAYOUT,
         "node verb should be RESTORE_LAYOUT"
     );
     assert_eq!(
@@ -45,7 +47,7 @@ fn test_plan_restore_returns_single_node() {
     );
 }
 
-/// Test: dry_run plan returns empty result without executing.
+/// Test: `dry_run` plan returns empty result without executing.
 #[test]
 fn test_dry_run_plan_returns_without_executing() {
     let plan = Plan::empty().as_dry_run();
@@ -55,10 +57,7 @@ fn test_dry_run_plan_returns_without_executing() {
 
     // For dry_run plans, execute should return an empty result without calling mux/store.
     let result = execute(&plan, &MockMux, &store);
-    assert!(
-        result.is_ok(),
-        "execute should succeed on dry_run plan"
-    );
+    assert!(result.is_ok(), "execute should succeed on dry_run plan");
 
     let result = result.unwrap();
     assert_eq!(
@@ -68,7 +67,7 @@ fn test_dry_run_plan_returns_without_executing() {
     );
 }
 
-/// Test: empty plan executes successfully.
+/// Test: `empty` plan executes successfully.
 #[test]
 fn test_empty_plan_executes_successfully() {
     let plan = Plan::empty();
@@ -139,8 +138,10 @@ impl resurreccion_mux::Mux for MockMux {
     fn subscribe_topology(
         &self,
         _session_name: &str,
-    ) -> Result<std::sync::mpsc::Receiver<resurreccion_mux::TopologyEvent>, resurreccion_mux::MuxError>
-    {
+    ) -> Result<
+        std::sync::mpsc::Receiver<resurreccion_mux::TopologyEvent>,
+        resurreccion_mux::MuxError,
+    > {
         let (_tx, rx) = std::sync::mpsc::channel();
         Ok(rx)
     }

@@ -16,6 +16,9 @@ Versioning: [Semantic Versioning](https://semver.org/) pre-1.0 model (see IMPLEM
 - `resurreccion-store`: SQLite CRUD implementation for workspaces, runtimes, snapshots, events.
 - `resurreccion-daemon`: Tokio async runtime with Envelope protocol support, verb dispatch system, single-instance guard, and graceful SIGTERM/SIGINT shutdown with 2s drain timeout.
 - `resurreccion-daemon`: Event bus integration via `rt-events` with non-blocking channel-based subscriber pattern for durable event persistence to store.
+- `resurreccion-daemon`: Snapshot verb handlers (create, restore, list, get) capturing and restoring layout state via planner and Mux backends.
+- `resurreccion-daemon`: Events verb handlers (tail) streaming stored events to clients.
+- `resurreccion-proto`: Verb constants for snapshot operations (SNAPSHOT_CREATE, SNAPSHOT_RESTORE, SNAPSHOT_LIST, SNAPSHOT_GET) and event streaming (EVENTS_TAIL).
 - `resurreccion-cli`: muxon binary with clap subcommands (doctor, workspace, save, restore, tree, events), shell completions (bash, zsh, fish).
 - `resurreccion-zellij`: `ZellijMux` implementing `Mux` trait via zellij CLI (discover, create, attach, capture, subscribe_topology).
 - `resurreccion-dir`: Path canonicalization (`canonicalize`), git detection (`detect_git`), and binding key composition (`compose_binding_key`) with `PathScoped` and `RepoScoped` scopes.

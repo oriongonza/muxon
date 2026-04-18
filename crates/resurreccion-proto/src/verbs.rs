@@ -27,6 +27,12 @@ pub const SNAPSHOT_CREATE: &str = "snapshot.create";
 /// Restore a workspace from a snapshot.
 pub const SNAPSHOT_RESTORE: &str = "snapshot.restore";
 
+/// List snapshots for a workspace.
+pub const SNAPSHOT_LIST: &str = "snapshot.list";
+
+/// Get a snapshot by ID.
+pub const SNAPSHOT_GET: &str = "snapshot.get";
+
 /// Subscribe to the event stream (long-lived streaming response).
 pub const EVENTS_TAIL: &str = "events.tail";
 

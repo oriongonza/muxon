@@ -8,8 +8,10 @@
 
 use crate::dispatch::Handler;
 use resurreccion_dir::{canonicalize, compose_binding_key, detect_git, Scope};
+use resurreccion_mux::Mux;
+use resurreccion_planner::{plan_capture, plan_restore, SnapshotManifest};
 use resurreccion_proto::Envelope;
-use resurreccion_store::types::WorkspaceRow;
+use resurreccion_store::types::{SnapshotRow, WorkspaceRow};
 use resurreccion_store::Store;
 use std::sync::{Arc, Mutex};
 use ulid::Ulid;
@@ -246,6 +248,255 @@ impl Handler for WorkspaceOpenHandler {
                     Envelope::ok(&env.id, &env.verb, serde_json::to_value(&row).unwrap())
                 }
             }
+            Err(e) => Envelope::err(&env.id, &env.verb, "internal", e.to_string()),
+        }
+    }
+}
+
+/// Handler for `snapshot.create` — capture and store a snapshot.
+pub struct SnapshotCreateHandler {
+    store: Arc<Mutex<Store>>,
+    mux: Arc<dyn Mux>,
+}
+
+impl SnapshotCreateHandler {
+    /// Create a new snapshot create handler.
+    pub fn new(store: Arc<Mutex<Store>>, mux: Arc<dyn Mux>) -> Self {
+        Self { store, mux }
+    }
+}
+
+impl Handler for SnapshotCreateHandler {
+    fn handle(&self, env: &Envelope) -> Envelope {
+        let workspace_id = env
+            .body
+            .get("workspace_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
+        if workspace_id.is_empty() {
+            return Envelope::err(
+                &env.id,
+                &env.verb,
+                "missing_workspace_id",
+                "workspace_id required",
+            );
+        }
+
+        // Get capabilities from Mux
+        let capabilities = self.mux.capabilities();
+
+        // Build capture plan
+        let plan = plan_capture(&capabilities);
+
+        // Execute plan
+        match resurreccion_planner::execute(&plan, self.mux.as_ref(), &self.store.lock().unwrap()) {
+            Ok(_) => {
+                // Plan executed successfully
+            }
+            Err(e) => {
+                return Envelope::err(&env.id, &env.verb, "plan_execution_failed", e.to_string());
+            }
+        }
+
+        // For now, we use a minimal manifest JSON. In production, this would contain actual capture data.
+        let manifest_json = serde_json::json!({
+            "fidelity": "basic",
+            "captured_at": chrono_now(),
+        })
+        .to_string();
+
+        let snapshot = SnapshotRow {
+            id: Ulid::new().to_string(),
+            workspace_id: workspace_id.to_string(),
+            runtime_id: None,
+            fidelity: "basic".to_string(),
+            manifest_json,
+            created_at: chrono_now(),
+        };
+
+        match self.store.lock().unwrap().snapshot_insert(&snapshot) {
+            Ok(()) => Envelope::ok(&env.id, &env.verb, serde_json::to_value(&snapshot).unwrap()),
+            Err(e) => Envelope::err(&env.id, &env.verb, "internal", e.to_string()),
+        }
+    }
+}
+
+/// Handler for `snapshot.restore` — apply a snapshot to a workspace.
+pub struct SnapshotRestoreHandler {
+    store: Arc<Mutex<Store>>,
+    mux: Arc<dyn Mux>,
+}
+
+impl SnapshotRestoreHandler {
+    /// Create a new snapshot restore handler.
+    pub fn new(store: Arc<Mutex<Store>>, mux: Arc<dyn Mux>) -> Self {
+        Self { store, mux }
+    }
+}
+
+impl Handler for SnapshotRestoreHandler {
+    fn handle(&self, env: &Envelope) -> Envelope {
+        let snapshot_id = env
+            .body
+            .get("snapshot_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
+        if snapshot_id.is_empty() {
+            return Envelope::err(
+                &env.id,
+                &env.verb,
+                "missing_snapshot_id",
+                "snapshot_id required",
+            );
+        }
+
+        let store_guard = self.store.lock().unwrap();
+
+        let snapshot = match store_guard.snapshot_get(snapshot_id) {
+            Ok(Some(snap)) => snap,
+            Ok(None) => {
+                return Envelope::err(&env.id, &env.verb, "not_found", "snapshot not found");
+            }
+            Err(e) => {
+                return Envelope::err(&env.id, &env.verb, "internal", e.to_string());
+            }
+        };
+
+        drop(store_guard);
+
+        // Parse manifest and build restore plan
+        let manifest_value: serde_json::Value = match serde_json::from_str(&snapshot.manifest_json)
+        {
+            Ok(m) => m,
+            Err(e) => {
+                return Envelope::err(&env.id, &env.verb, "invalid_manifest", e.to_string());
+            }
+        };
+
+        // Create a manifest structure for the planner
+        let manifest = SnapshotManifest {
+            workspace_id: snapshot.workspace_id.clone(),
+            layout: manifest_value
+                .get("layout")
+                .cloned()
+                .unwrap_or(serde_json::json!({})),
+        };
+
+        let capabilities = self.mux.capabilities();
+        let plan = plan_restore(&manifest, &capabilities);
+
+        // Execute plan
+        if let Err(e) =
+            resurreccion_planner::execute(&plan, self.mux.as_ref(), &self.store.lock().unwrap())
+        {
+            return Envelope::err(&env.id, &env.verb, "plan_execution_failed", e.to_string());
+        }
+
+        Envelope::ok(
+            &env.id,
+            &env.verb,
+            serde_json::json!({"snapshot_id": snapshot_id}),
+        )
+    }
+}
+
+/// Handler for `snapshot.list` — list snapshots for a workspace.
+pub struct SnapshotListHandler {
+    store: Arc<Mutex<Store>>,
+}
+
+impl SnapshotListHandler {
+    /// Create a new snapshot list handler.
+    pub fn new(store: Arc<Mutex<Store>>) -> Self {
+        Self { store }
+    }
+}
+
+impl Handler for SnapshotListHandler {
+    fn handle(&self, env: &Envelope) -> Envelope {
+        let workspace_id = env
+            .body
+            .get("workspace_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
+        if workspace_id.is_empty() {
+            return Envelope::err(
+                &env.id,
+                &env.verb,
+                "missing_workspace_id",
+                "workspace_id required",
+            );
+        }
+
+        match self.store.lock().unwrap().snapshot_list(workspace_id) {
+            Ok(rows) => Envelope::ok(
+                &env.id,
+                &env.verb,
+                serde_json::to_value(rows).unwrap_or_default(),
+            ),
+            Err(e) => Envelope::err(&env.id, &env.verb, "internal", e.to_string()),
+        }
+    }
+}
+
+/// Handler for `snapshot.get` — retrieve a snapshot by ID.
+pub struct SnapshotGetHandler {
+    store: Arc<Mutex<Store>>,
+}
+
+impl SnapshotGetHandler {
+    /// Create a new snapshot get handler.
+    pub fn new(store: Arc<Mutex<Store>>) -> Self {
+        Self { store }
+    }
+}
+
+impl Handler for SnapshotGetHandler {
+    fn handle(&self, env: &Envelope) -> Envelope {
+        let id = env.body.get("id").and_then(|v| v.as_str()).unwrap_or("");
+
+        match self.store.lock().unwrap().snapshot_get(id) {
+            Ok(Some(row)) => Envelope::ok(&env.id, &env.verb, serde_json::to_value(row).unwrap()),
+            Ok(None) => Envelope::err(&env.id, &env.verb, "not_found", "snapshot not found"),
+            Err(e) => Envelope::err(&env.id, &env.verb, "internal", e.to_string()),
+        }
+    }
+}
+
+/// Handler for `events.tail` — stream events from the store.
+pub struct EventsTailHandler {
+    store: Arc<Mutex<Store>>,
+}
+
+impl EventsTailHandler {
+    /// Create a new events tail handler.
+    pub fn new(store: Arc<Mutex<Store>>) -> Self {
+        Self { store }
+    }
+}
+
+impl Handler for EventsTailHandler {
+    fn handle(&self, env: &Envelope) -> Envelope {
+        let after_id = env
+            .body
+            .get("after_id")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        match self
+            .store
+            .lock()
+            .unwrap()
+            .event_tail_from(after_id.as_deref())
+        {
+            Ok(rows) => Envelope::ok(
+                &env.id,
+                &env.verb,
+                serde_json::to_value(rows).unwrap_or_default(),
+            ),
             Err(e) => Envelope::err(&env.id, &env.verb, "internal", e.to_string()),
         }
     }

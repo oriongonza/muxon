@@ -4,6 +4,8 @@
 
 /// Event bus and subscribers for the daemon.
 pub mod bus;
+/// Capability negotiation handler.
+pub mod capability_handler;
 /// Verb dispatch and handler trait.
 pub mod dispatch;
 /// Workspace and other verb handlers.
@@ -15,6 +17,7 @@ pub mod runtime;
 mod bus_test;
 
 pub use bus::setup_store_subscriber;
+pub use capability_handler::CapabilityHandler;
 pub use dispatch::{Dispatcher, Handler};
 pub use handlers::{
     EventsTailHandler, SnapshotCreateHandler, SnapshotGetHandler, SnapshotListHandler,

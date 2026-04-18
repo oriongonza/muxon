@@ -12,3 +12,4 @@ Versioning: [Semantic Versioning](https://semver.org/) pre-1.0 model (see IMPLEM
 - `resurreccion-planner`: Capability verb constants module (`capture.layout`, `restore.layout`, `capture.shell`, `restore.shell`, `capture.aigent`, `restore.aigent`, `capture.editor`, `restore.editor`).
 - `resurreccion-planner`: `execute()` stub signature (implementation by Lane F).
 - `resurreccion-store`: SQLite CRUD implementation for workspaces, runtimes, snapshots, events.
+- `resurreccion-daemon`: Tokio async runtime with Envelope protocol support, verb dispatch system, single-instance guard, and graceful SIGTERM/SIGINT shutdown with 2s drain timeout.

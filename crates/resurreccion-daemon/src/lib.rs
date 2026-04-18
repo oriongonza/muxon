@@ -10,6 +10,8 @@ pub mod dispatch;
 pub mod handlers;
 /// Async daemon runtime with graceful shutdown.
 pub mod runtime;
+/// Shell capture and restore handlers.
+pub mod shell_handlers;
 
 #[cfg(test)]
 mod bus_test;
@@ -22,3 +24,4 @@ pub use handlers::{
     WorkspaceOpenHandler, WorkspaceResolveOrCreateHandler,
 };
 pub use runtime::single_instance_guard;
+pub use shell_handlers::{ShellCaptureHandler, ShellRestoreHandler};

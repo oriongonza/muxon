@@ -14,6 +14,7 @@ resurreccion-store = { path = "../resurreccion-store" }
 resurreccion-dir = { path = "../resurreccion-dir" }
 resurreccion-mux = { path = "../resurreccion-mux" }
 resurreccion-planner = { path = "../resurreccion-planner" }
+resurreccion-shell = { path = "../resurreccion-shell" }
 resurreccion-zellij = { path = "../resurreccion-zellij" }
 rt-events = { workspace = true }
 tokio = { workspace = true }

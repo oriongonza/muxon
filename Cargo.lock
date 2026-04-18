@@ -1285,6 +1285,7 @@ dependencies = [
  "resurreccion-mux",
  "resurreccion-planner",
  "resurreccion-proto",
+ "resurreccion-shell",
  "resurreccion-store",
  "resurreccion-zellij",
  "rt-events",

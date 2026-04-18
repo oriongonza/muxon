@@ -2,9 +2,10 @@
 
 use clap::Parser;
 use resurreccion_daemon::{
-    Dispatcher, EventsTailHandler, Handler, SnapshotCreateHandler, SnapshotGetHandler,
-    SnapshotListHandler, SnapshotRestoreHandler, WorkspaceCreateHandler, WorkspaceGetHandler,
-    WorkspaceListHandler, WorkspaceOpenHandler, WorkspaceResolveOrCreateHandler,
+    Dispatcher, EventsTailHandler, Handler, ShellCaptureHandler, ShellRestoreHandler,
+    SnapshotCreateHandler, SnapshotGetHandler, SnapshotListHandler, SnapshotRestoreHandler,
+    WorkspaceCreateHandler, WorkspaceGetHandler, WorkspaceListHandler, WorkspaceOpenHandler,
+    WorkspaceResolveOrCreateHandler,
 };
 use resurreccion_mux::Mux;
 use resurreccion_proto::verbs;
@@ -119,6 +120,16 @@ async fn main() -> anyhow::Result<()> {
             dispatcher.register(
                 verbs::EVENTS_TAIL,
                 Arc::new(EventsTailHandler::new(store.clone())),
+            );
+
+            // Register shell handlers
+            dispatcher.register(
+                verbs::SHELL_CAPTURE,
+                Arc::new(ShellCaptureHandler::new(store.clone())),
+            );
+            dispatcher.register(
+                verbs::SHELL_RESTORE,
+                Arc::new(ShellRestoreHandler::new(store.clone())),
             );
 
             let dispatcher = Arc::new(dispatcher);

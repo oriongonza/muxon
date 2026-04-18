@@ -1,8 +1,12 @@
 //! Resurreccion daemon — the async runtime for the Resurreccion system.
 
-use resurreccion_daemon::{Dispatcher, Handler};
+use resurreccion_daemon::{
+    Dispatcher, Handler, WorkspaceCreateHandler, WorkspaceGetHandler, WorkspaceListHandler,
+    WorkspaceOpenHandler, WorkspaceResolveOrCreateHandler,
+};
 use resurreccion_proto::verbs;
-use std::sync::Arc;
+use resurreccion_store::Store;
+use std::sync::{Arc, Mutex};
 
 struct DoctorPingHandler;
 
@@ -27,12 +31,39 @@ async fn main() -> anyhow::Result<()> {
         .with_max_level(tracing::Level::INFO)
         .init();
 
+    // Initialize store
+    let store_path = get_store_path()?;
+    let store = Store::open(&store_path)?;
+    let store = Arc::new(Mutex::new(store));
+
     // Create dispatcher
     let mut dispatcher = Dispatcher::new();
 
     // Register handlers
     dispatcher.register(verbs::DOCTOR_PING, Arc::new(DoctorPingHandler));
     dispatcher.register(verbs::HANDSHAKE, Arc::new(HandshakeHandler));
+
+    // Register workspace handlers
+    dispatcher.register(
+        verbs::WORKSPACE_LIST,
+        Arc::new(WorkspaceListHandler::new(store.clone())),
+    );
+    dispatcher.register(
+        verbs::WORKSPACE_CREATE,
+        Arc::new(WorkspaceCreateHandler::new(store.clone())),
+    );
+    dispatcher.register(
+        verbs::WORKSPACE_GET,
+        Arc::new(WorkspaceGetHandler::new(store.clone())),
+    );
+    dispatcher.register(
+        verbs::WORKSPACE_RESOLVE_OR_CREATE,
+        Arc::new(WorkspaceResolveOrCreateHandler::new(store.clone())),
+    );
+    dispatcher.register(
+        verbs::WORKSPACE_OPEN,
+        Arc::new(WorkspaceOpenHandler::new(store.clone())),
+    );
 
     let dispatcher = Arc::new(dispatcher);
 
@@ -41,4 +72,19 @@ async fn main() -> anyhow::Result<()> {
 
     // Run daemon
     resurreccion_daemon::runtime::run(socket_path, dispatcher).await
+}
+
+/// Get the store database path from environment or use default.
+fn get_store_path() -> anyhow::Result<String> {
+    if let Ok(path) = std::env::var("RESURRECCION_STORE_PATH") {
+        return Ok(path);
+    }
+
+    let data_dir = directories::ProjectDirs::from("dev", "orion", "resurreccion")
+        .ok_or_else(|| anyhow::anyhow!("could not determine project directory"))?;
+
+    let data_path = data_dir.data_dir();
+    std::fs::create_dir_all(data_path)?;
+
+    Ok(data_path.join("store.db").to_string_lossy().to_string())
 }

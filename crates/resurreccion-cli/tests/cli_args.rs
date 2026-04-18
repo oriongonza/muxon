@@ -11,13 +11,15 @@ fn doctor_subcommand_parses() {
 
 #[test]
 fn workspace_list_parses() {
-    let cli = Cli::try_parse_from(["muxon", "workspace", "list"]).expect("workspace list should parse");
+    let cli =
+        Cli::try_parse_from(["muxon", "workspace", "list"]).expect("workspace list should parse");
     assert!(matches!(cli.command, Commands::Workspace(_)));
 }
 
 #[test]
 fn json_flag_parses() {
-    let cli = Cli::try_parse_from(["muxon", "doctor", "--json"]).expect("doctor --json should parse");
+    let cli =
+        Cli::try_parse_from(["muxon", "doctor", "--json"]).expect("doctor --json should parse");
     assert!(cli.json);
     assert!(matches!(cli.command, Commands::Doctor));
 }

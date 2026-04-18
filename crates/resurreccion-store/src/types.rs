@@ -67,3 +67,14 @@ pub struct EventRow {
     /// ISO-8601 creation timestamp.
     pub created_at: String,
 }
+
+/// A blob row from the `blobs` table.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BlobRow {
+    /// BLAKE3 hex hash (content-addressed).
+    pub hash: String,
+    /// Size in bytes.
+    pub size: i64,
+    /// Blob data.
+    pub data: Vec<u8>,
+}

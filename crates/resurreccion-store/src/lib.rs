@@ -7,7 +7,8 @@
 #![allow(
     clippy::significant_drop_in_scrutinee,
     clippy::significant_drop_tightening,
-    clippy::cast_possible_truncation
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap
 )]
 
 use anyhow::Result;
@@ -15,7 +16,7 @@ use rusqlite::Connection;
 use std::sync::Mutex;
 
 pub mod types;
-pub use types::{EventRow, RuntimeRow, SnapshotRow, WorkspaceRow};
+pub use types::{BlobRow, EventRow, RuntimeRow, SnapshotRow, WorkspaceRow};
 
 /// The main store handle. Wraps a `SQLite` connection.
 ///
@@ -362,6 +363,40 @@ impl Store {
                 output.push(row?);
             }
             Ok(output)
+        }
+    }
+
+    // ── Blobs ─────────────────────────────────────────────────────────────
+
+    /// Store a blob by its content, returning the BLAKE3 hash.
+    ///
+    /// Idempotent: storing the same data twice returns the same hash.
+    ///
+    /// # Errors
+    /// Returns an error if the insert fails.
+    pub fn blob_put(&self, data: &[u8]) -> Result<String> {
+        let hash = blake3::hash(data);
+        let hex = hash.to_hex().to_string();
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT OR IGNORE INTO blobs (hash, size, data) VALUES (?1, ?2, ?3)",
+            rusqlite::params![hex, data.len() as i64, data],
+        )?;
+        Ok(hex)
+    }
+
+    /// Retrieve a blob by its BLAKE3 hash.
+    ///
+    /// # Errors
+    /// Returns an error if the query fails.
+    pub fn blob_get(&self, hash: &str) -> Result<Option<Vec<u8>>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT data FROM blobs WHERE hash = ?1")?;
+        let mut rows = stmt.query(rusqlite::params![hash])?;
+        if let Some(row) = rows.next()? {
+            Ok(Some(row.get(0)?))
+        } else {
+            Ok(None)
         }
     }
 }

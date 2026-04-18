@@ -18,6 +18,7 @@ Versioning: [Semantic Versioning](https://semver.org/) pre-1.0 model (see IMPLEM
 ## [Unreleased]
 
 ### Added
+- `resurreccion-shell`: ShellCapture type, ShellAdapter trait, ProcShellAdapter stub.
 - `resurreccion-aigents`: Aigent trait (model_id, generate, capabilities), Message/Role types, AigentCapability bitflags (STREAMING, FUNCTION_CALLING, IMAGE_INPUT), and conformance test suite.
 - Workspace-level dependencies, lints, build profiles, toolchain pin, formatting config.
 - `resurreccion-planner`: Core planning layer types (`NodeId`, `PlanNode`, `Plan`, `PlanResult`, `NodeResult`).

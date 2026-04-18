@@ -1379,6 +1379,16 @@ name = "resurreccion-remote"
 version = "0.1.0"
 
 [[package]]
+name = "resurreccion-search"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "rusqlite",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "resurreccion-shell"
 version = "0.1.0"
 dependencies = [
@@ -1392,6 +1402,7 @@ name = "resurreccion-store"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "blake3",
  "rusqlite",
  "serde",
  "serde_json",

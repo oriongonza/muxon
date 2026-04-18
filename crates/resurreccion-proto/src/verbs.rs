@@ -59,3 +59,12 @@ pub const EVENTS_SUBSCRIBE: &str = "events.subscribe";
 
 /// Push an event from the server to a subscribed client.
 pub const EVENTS_PUSH: &str = "events.push";
+
+/// Establish an SSH connection to a remote daemon.
+pub const SSH_CONNECT: &str = "ssh.connect";
+
+/// Tear down an SSH connection to a remote daemon.
+pub const SSH_DISCONNECT: &str = "ssh.disconnect";
+
+/// Forward a verb to a remote daemon over an existing SSH connection.
+pub const SSH_FORWARD: &str = "ssh.forward";

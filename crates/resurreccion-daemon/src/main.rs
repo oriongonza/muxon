@@ -2,9 +2,9 @@
 
 use clap::Parser;
 use resurreccion_daemon::{
-    CapabilityHandler, Dispatcher, EventsTailHandler, Handler, SnapshotCreateHandler,
-    SnapshotGetHandler, SnapshotListHandler, SnapshotRestoreHandler, WorkspaceCreateHandler,
-    WorkspaceGetHandler, WorkspaceListHandler, WorkspaceOpenHandler,
+    CapabilityHandler, Dispatcher, EventsSubscribeHandler, EventsTailHandler, Handler,
+    SnapshotCreateHandler, SnapshotGetHandler, SnapshotListHandler, SnapshotRestoreHandler,
+    WorkspaceCreateHandler, WorkspaceGetHandler, WorkspaceListHandler, WorkspaceOpenHandler,
     WorkspaceResolveOrCreateHandler,
 };
 use resurreccion_mux::Mux;
@@ -120,6 +120,10 @@ async fn main() -> anyhow::Result<()> {
             dispatcher.register(
                 verbs::EVENTS_TAIL,
                 Arc::new(EventsTailHandler::new(store.clone())),
+            );
+            dispatcher.register(
+                verbs::EVENTS_SUBSCRIBE,
+                Arc::new(EventsSubscribeHandler::new(store.clone())),
             );
 
             // Register capability negotiation handler

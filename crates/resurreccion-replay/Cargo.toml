@@ -1,0 +1,17 @@
+[package]
+name = "resurreccion-replay"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Session replay data model for Resurreccion"
+
+[dependencies]
+resurreccion-store = { path = "../resurreccion-store" }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }

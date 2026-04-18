@@ -53,3 +53,9 @@ pub const AIGENT_LIST: &str = "aigent.list";
 
 /// Negotiate capabilities with the daemon.
 pub const CAPABILITY_NEGOTIATE: &str = "capability.negotiate";
+
+/// Subscribe to the event stream (long-lived streaming subscription).
+pub const EVENTS_SUBSCRIBE: &str = "events.subscribe";
+
+/// Push an event from the server to a subscribed client.
+pub const EVENTS_PUSH: &str = "events.push";

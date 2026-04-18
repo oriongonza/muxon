@@ -38,3 +38,15 @@ pub const EVENTS_TAIL: &str = "events.tail";
 
 /// Protocol handshake — sent by daemon immediately on connect.
 pub const HANDSHAKE: &str = "handshake";
+
+/// Capture shell state (history, environment variables, cwd, etc.).
+pub const SHELL_CAPTURE: &str = "shell.capture";
+
+/// Restore shell state from a previous capture.
+pub const SHELL_RESTORE: &str = "shell.restore";
+
+/// Generate an aigent response.
+pub const AIGENT_GENERATE: &str = "aigent.generate";
+
+/// List available aigents.
+pub const AIGENT_LIST: &str = "aigent.list";

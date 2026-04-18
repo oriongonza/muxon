@@ -4,6 +4,9 @@ version.workspace = true
 edition.workspace = true
 publish = false
 
+[lints]
+workspace = true
+
 [dependencies]
 resurreccion-proto = { path = "../resurreccion-proto" }
-rt-events = { path = "../../../promethea/rt-events" }
+rt-events = { workspace = true }

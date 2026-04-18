@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use resurreccion_proto::{default_socket_path, Request};
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
@@ -39,7 +41,7 @@ impl Args {
     {
         let mut command = Command::Doctor { json: false };
         let mut socket_path = default_socket_path();
-        let mut args = args.into_iter().peekable();
+        let mut args = args.into_iter();
 
         while let Some(arg) = args.next() {
             match arg.as_str() {
@@ -56,7 +58,10 @@ impl Args {
             }
         }
 
-        Ok(Self { command, socket_path })
+        Ok(Self {
+            command,
+            socket_path,
+        })
     }
 }
 
@@ -96,6 +101,9 @@ fn request_health(socket_path: &PathBuf) -> Result<String, String> {
     if response.contains("\"ok\":true") {
         Ok(response.trim().to_string())
     } else {
-        Err(format!("daemon returned unexpected response: {}", response.trim()))
+        Err(format!(
+            "daemon returned unexpected response: {}",
+            response.trim()
+        ))
     }
 }

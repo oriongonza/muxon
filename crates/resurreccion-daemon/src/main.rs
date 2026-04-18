@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use resurreccion_proto::{default_socket_path, Request, Response};
 use rt_events::EventBus;
 use std::fs;
@@ -64,7 +66,10 @@ impl Args {
             }
         }
 
-        Ok(Self { command, socket_path })
+        Ok(Self {
+            command,
+            socket_path,
+        })
     }
 }
 
@@ -110,8 +115,12 @@ fn remove_stale_socket(socket_path: &Path) -> Result<(), String> {
             "refusing to replace active socket at {}",
             socket_path.display()
         )),
-        Err(_) => fs::remove_file(socket_path)
-            .map_err(|error| format!("failed to remove stale socket {}: {error}", socket_path.display())),
+        Err(_) => fs::remove_file(socket_path).map_err(|error| {
+            format!(
+                "failed to remove stale socket {}: {error}",
+                socket_path.display()
+            )
+        }),
     }
 }
 
@@ -130,7 +139,7 @@ fn handle_connection(
 
     stream
         .write_all(response.to_json().as_bytes())
-        .and_then(|_| stream.write_all(b"\n"))
+        .and_then(|()| stream.write_all(b"\n"))
         .map_err(|error| format!("failed to write response: {error}"))
 }
 
@@ -167,7 +176,10 @@ fn request_health(socket_path: &Path) -> Result<Response, String> {
     if buffer.contains("\"ok\":true") {
         Ok(Response::health(socket_path))
     } else {
-        Err(format!("daemon returned unexpected response: {}", buffer.trim()))
+        Err(format!(
+            "daemon returned unexpected response: {}",
+            buffer.trim()
+        ))
     }
 }
 
@@ -182,7 +194,10 @@ fn register_default_observers(bus: &mut EventBus) {
         eprintln!("resurreccion-daemon listening on {}", event.socket_path);
     });
     bus.on(|event: &HealthRequestHandled| {
-        eprintln!("resurreccion-daemon handled health request on {}", event.socket_path);
+        eprintln!(
+            "resurreccion-daemon handled health request on {}",
+            event.socket_path
+        );
     });
     bus.on(|event: &BadRequestObserved| {
         eprintln!(

@@ -1,14 +1,25 @@
+//! Protocol types for the Resurreccion daemon and clients.
+
 use std::path::{Path, PathBuf};
 
+/// Default socket path for the Resurreccion daemon.
 pub const DEFAULT_SOCKET_PATH: &str = "/tmp/resurreccion.sock";
+/// Service name of the Resurreccion daemon.
 pub const SERVICE_NAME: &str = "resurreccion-daemon";
 
+/// A request that can be sent to the Resurreccion daemon.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
+    /// Health check request.
     Health,
 }
 
 impl Request {
+    /// Parse a request from a string.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input is not a valid request.
     pub fn parse(input: &str) -> Result<Self, String> {
         match input.trim() {
             "health" => Ok(Self::Health),
@@ -16,33 +27,45 @@ impl Request {
         }
     }
 
-    pub fn as_wire(&self) -> &'static str {
+    /// Get the wire format representation of this request.
+    pub const fn as_wire(&self) -> &'static str {
         match self {
             Self::Health => "health\n",
         }
     }
 }
 
+/// An error response from the daemon.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ErrorResponse {
+    /// Error code.
     pub code: String,
+    /// Error message.
     pub message: String,
 }
 
+/// A health check response from the daemon.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HealthResponse {
+    /// Name of the service.
     pub service: &'static str,
+    /// Status of the service.
     pub status: &'static str,
+    /// Path to the socket.
     pub socket_path: String,
 }
 
+/// A response from the Resurreccion daemon.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Response {
+    /// Health check response.
     Health(HealthResponse),
+    /// Error response.
     Error(ErrorResponse),
 }
 
 impl Response {
+    /// Create a successful health response.
     pub fn health(socket_path: &Path) -> Self {
         Self::Health(HealthResponse {
             service: SERVICE_NAME,
@@ -51,6 +74,7 @@ impl Response {
         })
     }
 
+    /// Create an error response.
     pub fn error(code: impl Into<String>, message: impl Into<String>) -> Self {
         Self::Error(ErrorResponse {
             code: code.into(),
@@ -58,6 +82,7 @@ impl Response {
         })
     }
 
+    /// Serialize this response to JSON.
     pub fn to_json(&self) -> String {
         match self {
             Self::Health(health) => format!(
@@ -75,6 +100,7 @@ impl Response {
     }
 }
 
+/// Get the default socket path for the Resurreccion daemon.
 pub fn default_socket_path() -> PathBuf {
     PathBuf::from(DEFAULT_SOCKET_PATH)
 }
@@ -116,6 +142,9 @@ mod tests {
 
     #[test]
     fn default_socket_path_is_stable() {
-        assert_eq!(default_socket_path().display().to_string(), "/tmp/resurreccion.sock");
+        assert_eq!(
+            default_socket_path().display().to_string(),
+            "/tmp/resurreccion.sock"
+        );
     }
 }

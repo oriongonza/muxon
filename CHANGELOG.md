@@ -7,6 +7,7 @@ Versioning: [Semantic Versioning](https://semver.org/) pre-1.0 model (see IMPLEM
 ## [0.1.0] - 2026-04-18
 
 ### Added
+- feat(headless): headless/CI mode batch execution (resurreccion-headless crate)
 - feat(search): full-text search index for workspaces and snapshots (resurreccion-search crate)
 - Integration tests (`crates/resurreccion-daemon/tests/integration.rs`) with daemon subprocess spawning, socket communication, and doctor.ping + workspace.list verification.
 - `resurreccion-daemon` CLI argument parsing with `serve --socket <path>` support for custom socket paths (testing).

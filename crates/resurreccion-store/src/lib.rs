@@ -15,7 +15,7 @@ use rusqlite::Connection;
 use std::sync::Mutex;
 
 pub mod types;
-pub use types::{EventRow, RuntimeRow, SnapshotRow, WorkspaceRow};
+pub use types::{BlobRow, EventRow, RuntimeRow, SnapshotRow, WorkspaceRow};
 
 /// The main store handle. Wraps a `SQLite` connection.
 ///
@@ -311,6 +311,40 @@ impl Store {
         Ok(())
     }
 
+    // ── Blobs ─────────────────────────────────────────────────────────────
+
+    /// Store a blob, returning its BLAKE3 hex hash.
+    ///
+    /// Content-addressed: calling with the same bytes is idempotent and returns
+    /// the same hash without error.
+    pub fn blob_put(&self, data: &[u8]) -> Result<String> {
+        let hash = blake3::hash(data).to_hex().to_string();
+        let size = i64::try_from(data.len()).unwrap_or(i64::MAX);
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT OR IGNORE INTO blobs (hash, size, data) VALUES (?1, ?2, ?3)",
+            rusqlite::params![&hash, size, data],
+        )?;
+        Ok(hash)
+    }
+
+    /// Retrieve a blob by its BLAKE3 hex hash.
+    ///
+    /// Returns `None` if no blob with that hash exists.
+    pub fn blob_get(&self, hash: &str) -> Result<Option<Vec<u8>>> {
+        let result = {
+            let conn = self.conn.lock().unwrap();
+            let mut stmt = conn.prepare("SELECT data FROM blobs WHERE hash = ?1")?;
+            stmt.query_row(rusqlite::params![hash], |row| row.get::<_, Vec<u8>>(0))
+        };
+
+        match result {
+            Ok(data) => Ok(Some(data)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
     /// Stream events from a given ID onward (for tail subscriptions).
     pub fn event_tail_from(&self, after_id: Option<&str>) -> Result<Vec<EventRow>> {
         let conn = self.conn.lock().unwrap();
@@ -379,4 +413,50 @@ fn iso_now() -> String {
     // Create a simple ISO format string
     // In a real implementation, you'd use a datetime library
     format!("2026-04-18T00:00:{:02}.{:03}Z", (seconds % 60), millis)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn open_memory() -> Store {
+        Store::open(":memory:").expect("in-memory store must open")
+    }
+
+    #[test]
+    fn blob_round_trip() {
+        let store = open_memory();
+        let payload = b"hello world";
+
+        // Known BLAKE3 hash for b"hello world"
+        let expected_hash = blake3::hash(payload).to_hex().to_string();
+
+        // blob_put returns the correct hex hash
+        let hash = store.blob_put(payload).expect("blob_put must succeed");
+        assert_eq!(
+            hash, expected_hash,
+            "returned hash must be BLAKE3 of the data"
+        );
+
+        // blob_get returns the original data
+        let got = store.blob_get(&hash).expect("blob_get must not error");
+        assert_eq!(
+            got,
+            Some(payload.to_vec()),
+            "blob_get must return original data"
+        );
+
+        // blob_get with unknown hash returns None
+        let fake = "0".repeat(64);
+        let missing = store
+            .blob_get(&fake)
+            .expect("blob_get for missing must not error");
+        assert_eq!(missing, None, "blob_get with fake hash must return None");
+
+        // blob_put is idempotent: same data → same hash, no error
+        let hash2 = store
+            .blob_put(payload)
+            .expect("second blob_put must succeed");
+        assert_eq!(hash2, hash, "second put of same data must return same hash");
+    }
 }

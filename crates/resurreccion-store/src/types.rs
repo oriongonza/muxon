@@ -53,6 +53,17 @@ pub struct SnapshotRow {
     pub created_at: String,
 }
 
+/// A blob row from the `blobs` table.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BlobRow {
+    /// BLAKE3 hex hash (content-addressed primary key).
+    pub hash: String,
+    /// Size in bytes.
+    pub size: i64,
+    /// Raw blob data.
+    pub data: Vec<u8>,
+}
+
 /// An event row from the `events` table.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EventRow {

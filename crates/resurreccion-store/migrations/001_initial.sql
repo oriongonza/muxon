@@ -36,9 +36,9 @@ CREATE TABLE IF NOT EXISTS snapshots (
 );
 
 CREATE TABLE IF NOT EXISTS blobs (
-    id              TEXT PRIMARY KEY,       -- BLAKE3 hex (content-addressed)
-    size_bytes      INTEGER NOT NULL,
-    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    hash            TEXT PRIMARY KEY,       -- BLAKE3 hex (content-addressed)
+    size            INTEGER NOT NULL,
+    data            BLOB NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS events (

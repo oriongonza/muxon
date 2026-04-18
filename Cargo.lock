@@ -1370,6 +1370,7 @@ name = "resurreccion-store"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "blake3",
  "rusqlite",
  "serde",
  "serde_json",

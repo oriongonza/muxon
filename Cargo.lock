@@ -1262,6 +1262,13 @@ dependencies = [
 [[package]]
 name = "resurreccion-codex"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "reqwest",
+ "resurreccion-aigents",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "resurreccion-core"

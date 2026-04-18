@@ -1,0 +1,21 @@
+[workspace]
+members = [
+  "crates/*",
+  "plugins/*",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+version = "0.0.0"
+license = "MIT"
+authors = ["Ardi <ardi@local>"]
+repository = "https://github.com/ardi/muxon"
+
+[workspace.dependencies]
+rt-events = { path = "../promethea/rt-events" }
+
+[workspace.metadata.resurreccion]
+project_name = "Muxon"
+resurrection_system = "Resurreccion"
+status = "scaffolded"

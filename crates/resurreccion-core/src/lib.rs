@@ -1,0 +1,1 @@
+//! resurreccion-core placeholder module.

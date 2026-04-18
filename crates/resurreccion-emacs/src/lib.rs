@@ -1,0 +1,1 @@
+//! resurreccion-emacs placeholder module.

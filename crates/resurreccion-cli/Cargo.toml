@@ -1,0 +1,8 @@
+[package]
+name = "resurreccion-cli"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+resurreccion-proto = { path = "../resurreccion-proto" }

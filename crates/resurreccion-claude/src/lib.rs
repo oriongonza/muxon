@@ -1,0 +1,1 @@
+//! resurreccion-claude placeholder module.

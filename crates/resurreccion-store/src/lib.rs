@@ -1,0 +1,1 @@
+//! resurreccion-store placeholder module.

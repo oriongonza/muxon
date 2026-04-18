@@ -1,0 +1,7 @@
+[package]
+name = "resurreccion-proto"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]

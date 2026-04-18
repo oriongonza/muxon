@@ -1,0 +1,10 @@
+[package]
+name = "resurreccion-zellij-plugin"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]

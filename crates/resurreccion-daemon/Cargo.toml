@@ -1,0 +1,9 @@
+[package]
+name = "resurreccion-daemon"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+resurreccion-proto = { path = "../resurreccion-proto" }
+rt-events = { path = "../../../promethea/rt-events" }

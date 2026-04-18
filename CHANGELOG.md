@@ -18,7 +18,9 @@ Versioning: [Semantic Versioning](https://semver.org/) pre-1.0 model (see IMPLEM
 ## [Unreleased]
 
 ### Added
+- feat(neovim): Neovim editor adapter (resurreccion-nvim crate) — `NvimAdapter` implements `Editor` trait; connects via socket from `NVIM`/`NVIM_LISTEN_ADDRESS`, degrades gracefully when socket is unavailable.
 - feat(plugin): Zellij plugin renderer scaffolding (resurreccion-zellij-plugin crate)
+- `resurreccion-editor`: Editor trait, EditorCapture type, conformance suite (new crate).
 - `resurreccion-proto`: events.subscribe/events.push verbs, SubscribeRequest type, streaming wire protocol documented
 - `resurreccion-proto`: capability.negotiate verb, CapabilityRequest/CapabilityResponse types
 - `resurreccion-claude`: ClaudeAigent implementing Aigent trait via Anthropic Messages API.

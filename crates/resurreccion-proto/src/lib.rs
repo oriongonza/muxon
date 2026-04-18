@@ -182,6 +182,21 @@ pub struct CapabilityResponse {
     pub agreed_capabilities: Vec<String>,
 }
 
+/// Request to subscribe to the event stream.
+///
+/// Wire protocol for streaming:
+/// 1. Client sends Envelope { verb: EVENTS_SUBSCRIBE, body: SubscribeRequest as JSON }
+/// 2. Server responds with Envelope { verb: EVENTS_SUBSCRIBE, ok: true, body: {} } (ack)
+/// 3. Server then sends zero or more Envelope { verb: EVENTS_PUSH, ok: true, body: EventRow as JSON }
+/// 4. Loop exits when client closes connection (write error on server side)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubscribeRequest {
+    /// Optional workspace ID to filter events by. If None, subscribe to all workspaces.
+    pub workspace_id: Option<String>,
+    /// Optional event ID to resume streaming after. If None, start from the beginning.
+    pub after_id: Option<String>,
+}
+
 // ── Legacy API (preserved for daemon compatibility) ───────────────────────
 
 /// Legacy constant for backwards compatibility.

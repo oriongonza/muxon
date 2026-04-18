@@ -18,6 +18,7 @@ Versioning: [Semantic Versioning](https://semver.org/) pre-1.0 model (see IMPLEM
 ## [Unreleased]
 
 ### Added
+- `resurreccion-proto`: events.subscribe/events.push verbs, SubscribeRequest type, streaming wire protocol documented
 - `resurreccion-proto`: capability.negotiate verb, CapabilityRequest/CapabilityResponse types
 - `resurreccion-claude`: ClaudeAigent implementing Aigent trait via Anthropic Messages API.
 - `resurreccion-proto`: shell.capture, shell.restore, aigent.generate, aigent.list verb constants.

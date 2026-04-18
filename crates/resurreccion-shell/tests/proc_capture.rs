@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use resurreccion_shell::{ProcShellAdapter, ShellAdapter};
 use std::process;
 

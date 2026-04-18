@@ -1,5 +1,5 @@
 //! Compile-time test: planner types and verb constants exist.
-use resurreccion_planner::{NodeId, Plan, verbs};
+use resurreccion_planner::{verbs, NodeId, Plan};
 
 #[test]
 fn empty_plan_has_no_nodes() {

@@ -41,6 +41,7 @@ pub struct PlanNode {
 
 impl PlanNode {
     /// Create a leaf node (no dependencies).
+    #[must_use]
     pub fn leaf(verb: impl Into<String>, args: serde_json::Value) -> Self {
         Self {
             id: NodeId::new(),
@@ -67,6 +68,8 @@ pub struct Plan {
 
 impl Plan {
     /// An empty plan with no nodes.
+    #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
     pub fn empty() -> Self {
         Self {
             nodes: vec![],
@@ -76,6 +79,7 @@ impl Plan {
     }
 
     /// A plan with a single node.
+    #[must_use]
     pub fn single(node: PlanNode, description: impl Into<String>) -> Self {
         Self {
             nodes: vec![node],
@@ -85,6 +89,8 @@ impl Plan {
     }
 
     /// Mark this plan as dry-run only.
+    #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
     pub fn as_dry_run(mut self) -> Self {
         self.dry_run = true;
         self

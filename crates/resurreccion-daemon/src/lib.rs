@@ -8,6 +8,8 @@ pub mod bus;
 pub mod capability_handler;
 /// Verb dispatch and handler trait.
 pub mod dispatch;
+/// Events subscription handler (`events.subscribe` / `events.push`).
+pub mod events_handler;
 /// Workspace and other verb handlers.
 pub mod handlers;
 /// Async daemon runtime with graceful shutdown.
@@ -19,6 +21,7 @@ mod bus_test;
 pub use bus::setup_store_subscriber;
 pub use capability_handler::CapabilityHandler;
 pub use dispatch::{Dispatcher, Handler};
+pub use events_handler::EventsSubscribeHandler;
 pub use handlers::{
     EventsTailHandler, SnapshotCreateHandler, SnapshotGetHandler, SnapshotListHandler,
     SnapshotRestoreHandler, WorkspaceCreateHandler, WorkspaceGetHandler, WorkspaceListHandler,

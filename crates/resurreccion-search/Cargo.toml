@@ -1,0 +1,17 @@
+[package]
+name = "resurreccion-search"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Full-text and structured search over workspace names, snapshot manifests, and event payloads"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rusqlite = { workspace = true }

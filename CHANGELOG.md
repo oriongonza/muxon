@@ -19,6 +19,7 @@ Versioning: [Semantic Versioning](https://semver.org/) pre-1.0 model (see IMPLEM
 
 ## [Unreleased]
 
+- feat(federation): multi-daemon federation registry (resurreccion-federation crate)
 - feat(ssh): SSH remote client (resurreccion-ssh crate, dry-run forward)
 
 ### Added

@@ -9,3 +9,11 @@ workspace = true
 
 [dependencies]
 resurreccion-proto = { path = "../resurreccion-proto" }
+clap = { workspace = true }
+clap_complete = { workspace = true }
+anyhow = { workspace = true }
+serde_json = { workspace = true }
+
+[build-dependencies]
+clap = { workspace = true }
+clap_complete = { workspace = true }

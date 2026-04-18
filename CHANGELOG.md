@@ -13,3 +13,4 @@ Versioning: [Semantic Versioning](https://semver.org/) pre-1.0 model (see IMPLEM
 - `resurreccion-planner`: `execute()` stub signature (implementation by Lane F).
 - `resurreccion-store`: SQLite CRUD implementation for workspaces, runtimes, snapshots, events.
 - `resurreccion-daemon`: Tokio async runtime with Envelope protocol support, verb dispatch system, single-instance guard, and graceful SIGTERM/SIGINT shutdown with 2s drain timeout.
+- `resurreccion-cli`: muxon binary with clap subcommands (doctor, workspace, save, restore, tree, events), shell completions (bash, zsh, fish).

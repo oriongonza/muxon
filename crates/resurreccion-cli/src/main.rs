@@ -1,109 +1,128 @@
 #![allow(missing_docs)]
 
-use resurreccion_proto::{default_socket_path, LegacyRequest};
-use std::io::{Read, Write};
+use clap::Parser;
+use resurreccion_cli::{Cli, Commands, EventsCmd, WorkspaceCmd};
+use resurreccion_proto::{default_socket_path, Envelope, Request};
+use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::UnixStream;
-use std::path::PathBuf;
 use std::process::ExitCode;
+use std::time::Duration;
 
 fn main() -> ExitCode {
-    match run() {
+    let cli = Cli::parse();
+    match run(cli) {
         Ok(()) => ExitCode::SUCCESS,
-        Err(error) => {
-            eprintln!("{error}");
-            ExitCode::FAILURE
+        Err(e) => {
+            eprintln!("{e}");
+            ExitCode::from(1)
         }
     }
 }
 
-fn run() -> Result<(), String> {
-    let args = Args::parse(std::env::args().skip(1))?;
-    match args.command {
-        Command::Doctor { json } => doctor(&args.socket_path, json),
-    }
-}
+fn run(cli: Cli) -> Result<(), String> {
+    let socket_path = cli.socket.unwrap_or_else(default_socket_path);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum Command {
-    Doctor { json: bool },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct Args {
-    command: Command,
-    socket_path: PathBuf,
-}
-
-impl Args {
-    fn parse<I>(args: I) -> Result<Self, String>
-    where
-        I: IntoIterator<Item = String>,
-    {
-        let mut command = Command::Doctor { json: false };
-        let mut socket_path = default_socket_path();
-        let mut args = args.into_iter();
-
-        while let Some(arg) = args.next() {
-            match arg.as_str() {
-                "doctor" => {}
-                "--json" => command = Command::Doctor { json: true },
-                "--socket" => {
-                    let value = args
-                        .next()
-                        .ok_or_else(|| "missing value for --socket".to_string())?;
-                    socket_path = PathBuf::from(value);
-                }
-                "--help" | "-h" => return Err(help_text()),
-                other => return Err(format!("unknown argument: {other}\n\n{}", help_text())),
+    match cli.command {
+        Commands::Doctor => doctor(&socket_path, cli.json),
+        Commands::Save => {
+            println!("save: not yet implemented");
+            Ok(())
+        }
+        Commands::Restore => {
+            println!("restore: not yet implemented");
+            Ok(())
+        }
+        Commands::Tree => {
+            println!("tree: not yet implemented");
+            Ok(())
+        }
+        Commands::Events(wrapper) => match wrapper.cmd {
+            EventsCmd::Tail => {
+                println!("events tail: not yet implemented");
+                Ok(())
             }
-        }
-
-        Ok(Self {
-            command,
-            socket_path,
-        })
+        },
+        Commands::Workspace(wrapper) => match wrapper.cmd {
+            WorkspaceCmd::Create => workspace_create(&socket_path, cli.json),
+            WorkspaceCmd::Get => workspace_get(&socket_path, cli.json),
+            WorkspaceCmd::List => workspace_list(&socket_path, cli.json),
+        },
     }
 }
 
-fn help_text() -> String {
-    [
-        "Usage:",
-        "  resurreccion-cli doctor [--socket PATH] [--json]",
-    ]
-    .join("\n")
-}
+fn doctor(socket_path: &std::path::PathBuf, json: bool) -> Result<(), String> {
+    let request = Request::doctor_ping();
+    let envelope = send_request(socket_path, &request)?;
 
-fn doctor(socket_path: &PathBuf, json: bool) -> Result<(), String> {
-    let response = request_health(socket_path)?;
     if json {
-        println!("{response}");
+        let json_str = serde_json::to_string(&envelope)
+            .map_err(|e| format!("failed to serialize response: {e}"))?;
+        println!("{json_str}");
     } else {
-        println!(
-            "resurreccion-daemon is healthy at {}",
-            socket_path.display()
-        );
+        println!("doctor: ok");
     }
+
     Ok(())
 }
 
-fn request_health(socket_path: &PathBuf) -> Result<String, String> {
-    let mut stream = UnixStream::connect(socket_path)
-        .map_err(|error| format!("failed to connect to {}: {error}", socket_path.display()))?;
-    stream
-        .write_all(LegacyRequest::Health.as_wire().as_bytes())
-        .map_err(|error| format!("failed to send health request: {error}"))?;
+fn workspace_list(socket_path: &std::path::PathBuf, json: bool) -> Result<(), String> {
+    let request = Request::workspace_list();
+    let envelope = send_request(socket_path, &request)?;
 
-    let mut response = String::new();
-    stream
-        .read_to_string(&mut response)
-        .map_err(|error| format!("failed to read health response: {error}"))?;
-
-    if response.contains("\"ok\":true") {
-        Ok(response.trim().to_string())
+    if json {
+        let json_str = serde_json::to_string(&envelope)
+            .map_err(|e| format!("failed to serialize response: {e}"))?;
+        println!("{json_str}");
     } else {
-        Err(format!(
-            "daemon returned unexpected response: {}",
-            response.trim()
-        ))
+        println!("workspaces: {}", envelope.body);
     }
+
+    Ok(())
+}
+
+#[allow(clippy::unnecessary_wraps)]
+fn workspace_create(_socket_path: &std::path::PathBuf, _json: bool) -> Result<(), String> {
+    println!("workspace create: not yet implemented");
+    Ok(())
+}
+
+#[allow(clippy::unnecessary_wraps)]
+fn workspace_get(_socket_path: &std::path::PathBuf, _json: bool) -> Result<(), String> {
+    println!("workspace get: not yet implemented");
+    Ok(())
+}
+
+fn send_request(socket_path: &std::path::PathBuf, request: &Request) -> Result<Envelope, String> {
+    let mut stream = UnixStream::connect(socket_path).map_err(|error| {
+        format!(
+            "failed to connect to {}: {} (exit 3)",
+            socket_path.display(),
+            error
+        )
+    })?;
+
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .map_err(|e| format!("failed to set read timeout: {e}"))?;
+
+    let request_json =
+        serde_json::to_string(request).map_err(|e| format!("failed to serialize request: {e}"))?;
+
+    stream
+        .write_all(request_json.as_bytes())
+        .map_err(|e| format!("failed to write to socket: {e}"))?;
+    stream
+        .write_all(b"\n")
+        .map_err(|e| format!("failed to write newline: {e}"))?;
+
+    let mut reader = BufReader::new(&stream);
+    let mut response_line = String::new();
+    reader
+        .read_line(&mut response_line)
+        .map_err(|e| format!("failed to read from socket: {e}"))?;
+
+    let envelope: Envelope = serde_json::from_str(&response_line)
+        .map_err(|e| format!("failed to parse response: {e}"))?;
+
+    Ok(envelope)
 }

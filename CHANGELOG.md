@@ -4,6 +4,17 @@ All notable changes are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/) pre-1.0 model (see IMPLEMENTATION_PLAN.md).
 
+## [0.1.0] - 2026-04-18
+
+### Added
+- Integration tests (`crates/resurreccion-daemon/tests/integration.rs`) with daemon subprocess spawning, socket communication, and doctor.ping + workspace.list verification.
+- `resurreccion-daemon` CLI argument parsing with `serve --socket <path>` support for custom socket paths (testing).
+- Full documentation pass with `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` compliance across all public crates.
+
+### Fixed
+- Fixed rustdoc lint deprecation in `resurreccion-cli` (changed `missing_crate_level_docs` to `rustdoc::missing_crate_level_docs`).
+- Resolved clippy warnings in `resurreccion-daemon` handlers (redundant clone, or_fun_call, expect_fun_call).
+
 ## [Unreleased]
 
 ### Added

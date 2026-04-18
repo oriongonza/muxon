@@ -197,6 +197,105 @@ pub struct SubscribeRequest {
     pub after_id: Option<String>,
 }
 
+// ── SSH remote transport seam ──────────────────────────────────────────────
+
+/// Request to open an SSH connection to a remote Resurreccion daemon.
+///
+/// On success the daemon returns [`SshConnectResponse`] containing a ULID
+/// `connection_id` that must be supplied in all subsequent [`SshForwardRequest`]s.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SshConnectRequest {
+    /// Hostname or IP address of the remote host.
+    pub host: String,
+    /// SSH port on the remote host (typically 22).
+    pub port: u16,
+    /// Remote username.
+    pub user: String,
+    /// Optional path to a private-key identity file. If `None` the SSH agent
+    /// or default key files are used.
+    pub identity_file: Option<String>,
+}
+
+/// Response returned after a successful SSH connection.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SshConnectResponse {
+    /// ULID identifying this SSH connection for the lifetime of the session.
+    pub connection_id: String,
+    /// Verb names advertised by the remote daemon.
+    pub remote_capabilities: Vec<String>,
+}
+
+/// Request to forward a verb to a remote daemon over an existing SSH connection.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SshForwardRequest {
+    /// ULID returned by the preceding [`SshConnectResponse`].
+    pub connection_id: String,
+    /// Verb to invoke on the remote daemon.
+    pub verb: String,
+    /// Verb-specific payload forwarded verbatim to the remote daemon.
+    pub body: serde_json::Value,
+}
+
+#[cfg(test)]
+mod ssh_tests {
+    use super::*;
+
+    #[test]
+    fn ssh_connect_request_roundtrip() {
+        let req = SshConnectRequest {
+            host: "example.com".to_string(),
+            port: 22,
+            user: "alice".to_string(),
+            identity_file: Some("/home/alice/.ssh/id_ed25519".to_string()),
+        };
+        let json = serde_json::to_string(&req).expect("serialize");
+        let back: SshConnectRequest = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.host, req.host);
+        assert_eq!(back.port, req.port);
+        assert_eq!(back.user, req.user);
+        assert_eq!(back.identity_file, req.identity_file);
+    }
+
+    #[test]
+    fn ssh_connect_request_no_identity_roundtrip() {
+        let req = SshConnectRequest {
+            host: "10.0.0.1".to_string(),
+            port: 2222,
+            user: "bob".to_string(),
+            identity_file: None,
+        };
+        let json = serde_json::to_string(&req).expect("serialize");
+        let back: SshConnectRequest = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.identity_file, None);
+    }
+
+    #[test]
+    fn ssh_connect_response_roundtrip() {
+        let resp = SshConnectResponse {
+            connection_id: "01HZZZZZZZZZZZZZZZZZZZZZZ".to_string(),
+            remote_capabilities: vec!["doctor.ping".to_string(), "workspace.list".to_string()],
+        };
+        let json = serde_json::to_string(&resp).expect("serialize");
+        let back: SshConnectResponse = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.connection_id, resp.connection_id);
+        assert_eq!(back.remote_capabilities, resp.remote_capabilities);
+    }
+
+    #[test]
+    fn ssh_forward_request_roundtrip() {
+        let req = SshForwardRequest {
+            connection_id: "01HZZZZZZZZZZZZZZZZZZZZZZ".to_string(),
+            verb: "doctor.ping".to_string(),
+            body: serde_json::json!({ "echo": true }),
+        };
+        let json = serde_json::to_string(&req).expect("serialize");
+        let back: SshForwardRequest = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.connection_id, req.connection_id);
+        assert_eq!(back.verb, req.verb);
+        assert_eq!(back.body, req.body);
+    }
+}
+
 // ── Legacy API (preserved for daemon compatibility) ───────────────────────
 
 /// Legacy constant for backwards compatibility.

@@ -19,6 +19,7 @@ Versioning: [Semantic Versioning](https://semver.org/) pre-1.0 model (see IMPLEM
 ## [Unreleased]
 
 ### Added
+- feat(proto): SSH remote transport seam (ssh.connect, ssh.disconnect, ssh.forward verbs + types)
 - feat(timetravel): snapshot history query API (resurreccion-timetravel crate)
 - feat(codex): OpenAI-compatible aigent backend (resurreccion-codex crate)
 - feat(neovim): Neovim editor adapter (resurreccion-nvim crate) — `NvimAdapter` implements `Editor` trait; connects via socket from `NVIM`/`NVIM_LISTEN_ADDRESS`, degrades gracefully when socket is unavailable.

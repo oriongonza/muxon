@@ -11,6 +11,7 @@ workspace = true
 resurreccion-core = { path = "../resurreccion-core" }
 resurreccion-proto = { path = "../resurreccion-proto" }
 resurreccion-store = { path = "../resurreccion-store" }
+resurreccion-dir = { path = "../resurreccion-dir" }
 rt-events = { workspace = true }
 tokio = { workspace = true }
 anyhow.workspace = true

@@ -6,6 +6,8 @@
 pub mod bus;
 /// Verb dispatch and handler trait.
 pub mod dispatch;
+/// Workspace and other verb handlers.
+pub mod handlers;
 /// Async daemon runtime with graceful shutdown.
 pub mod runtime;
 
@@ -14,4 +16,8 @@ mod bus_test;
 
 pub use bus::setup_store_subscriber;
 pub use dispatch::{Dispatcher, Handler};
+pub use handlers::{
+    WorkspaceCreateHandler, WorkspaceGetHandler, WorkspaceListHandler, WorkspaceOpenHandler,
+    WorkspaceResolveOrCreateHandler,
+};
 pub use runtime::single_instance_guard;

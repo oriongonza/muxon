@@ -1,0 +1,16 @@
+[package]
+name = "resurreccion-timetravel"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+resurreccion-store = { path = "../resurreccion-store" }
+serde_json.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+
+[dev-dependencies]

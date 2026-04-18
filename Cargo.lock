@@ -1400,6 +1400,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "resurreccion-timetravel"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "resurreccion-store",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "resurreccion-zellij"
 version = "0.1.0"
 dependencies = [

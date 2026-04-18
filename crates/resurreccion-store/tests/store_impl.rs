@@ -1,3 +1,7 @@
+//! Integration tests for the Store CRUD implementation.
+
+#![allow(clippy::cast_possible_truncation)]
+
 use anyhow::Result;
 use resurreccion_store::{EventRow, RuntimeRow, SnapshotRow, Store, WorkspaceRow};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -10,13 +14,18 @@ fn temp_store() -> Result<(TempDir, Store)> {
     Ok((dir, store))
 }
 
+#[allow(clippy::cast_possible_truncation)]
 fn now_iso() -> String {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_millis() as i64;
     // For tests, we'll use a simple ISO-like format with milliseconds
-    format!("2026-04-18T00:00:{:02}.{:03}Z", (now / 1000) % 60, now % 1000)
+    format!(
+        "2026-04-18T00:00:{:02}.{:03}Z",
+        (now / 1000) % 60,
+        now % 1000
+    )
 }
 
 #[test]

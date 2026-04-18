@@ -1,0 +1,16 @@
+[package]
+name = "resurreccion-tui"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+resurreccion-core = { path = "../resurreccion-core" }
+serde_json.workspace = true
+anyhow.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true

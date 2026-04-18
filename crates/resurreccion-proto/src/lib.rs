@@ -164,6 +164,24 @@ pub struct SnapshotRestoreArgs {
     pub snapshot_id: String,
 }
 
+/// Request for capability negotiation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CapabilityRequest {
+    /// Protocol version supported by the client.
+    pub client_proto: u32,
+    /// Capabilities requested by the client.
+    pub client_capabilities: Vec<String>,
+}
+
+/// Response to capability negotiation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CapabilityResponse {
+    /// Protocol version supported by the server.
+    pub server_proto: u32,
+    /// Capabilities agreed upon by the server.
+    pub agreed_capabilities: Vec<String>,
+}
+
 // ── Legacy API (preserved for daemon compatibility) ───────────────────────
 
 /// Legacy constant for backwards compatibility.

@@ -33,6 +33,7 @@ camino = { version = "1", features = ["serde1"] }
 git2 = { version = "0.20", default-features = false }
 clap = { version = "4", features = ["derive"] }
 clap_complete = "4"
+bitflags = "2"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

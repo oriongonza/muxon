@@ -862,15 +862,21 @@ checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 
 [[package]]
 name = "resurreccion-aigents"
-version = "0.0.0"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bitflags",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "resurreccion-claude"
-version = "0.0.0"
+version = "0.1.0"
 
 [[package]]
 name = "resurreccion-cli"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -881,11 +887,11 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-codex"
-version = "0.0.0"
+version = "0.1.0"
 
 [[package]]
 name = "resurreccion-core"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "blake3",
  "serde",
@@ -895,7 +901,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-daemon"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -918,7 +924,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-dir"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "blake3",
@@ -931,11 +937,11 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-emacs"
-version = "0.0.0"
+version = "0.1.0"
 
 [[package]]
 name = "resurreccion-mux"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "bitflags",
  "serde",
@@ -944,11 +950,11 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-nvim"
-version = "0.0.0"
+version = "0.1.0"
 
 [[package]]
 name = "resurreccion-planner"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "resurreccion-mux",
@@ -962,7 +968,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-proto"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "insta",
  "serde",
@@ -974,15 +980,15 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-remote"
-version = "0.0.0"
+version = "0.1.0"
 
 [[package]]
 name = "resurreccion-shell"
-version = "0.0.0"
+version = "0.1.0"
 
 [[package]]
 name = "resurreccion-store"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "rusqlite",
@@ -994,7 +1000,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-zellij"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "resurreccion-mux",
@@ -1005,7 +1011,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-zellij-plugin"
-version = "0.0.0"
+version = "0.1.0"
 
 [[package]]
 name = "rt-events"

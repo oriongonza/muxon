@@ -1328,6 +1328,11 @@ dependencies = [
 [[package]]
 name = "resurreccion-emacs"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "resurreccion-editor",
+ "serde_json",
+]
 
 [[package]]
 name = "resurreccion-headless"

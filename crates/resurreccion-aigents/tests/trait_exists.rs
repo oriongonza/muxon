@@ -1,5 +1,8 @@
+//! Tests for Aigent trait seam.
+
 use resurreccion_aigents::{Aigent, AigentCapability, Message, Role};
 
+/// Verifies that dyn Aigent can be created and is object-safe.
 #[test]
 fn assert_aigent_is_object_safe() {
     // This test verifies that dyn Aigent can be created.
@@ -7,7 +10,7 @@ fn assert_aigent_is_object_safe() {
     struct MockAigent;
 
     impl Aigent for MockAigent {
-        fn model_id(&self) -> &str {
+        fn model_id(&self) -> &'static str {
             "mock-model"
         }
 
@@ -24,6 +27,7 @@ fn assert_aigent_is_object_safe() {
     assert_eq!(aigent.model_id(), "mock-model");
 }
 
+/// Verifies that capability flags are properly implemented as bitflags.
 #[test]
 fn capability_flags_are_bitflags() {
     let streaming = AigentCapability::STREAMING;
@@ -43,6 +47,7 @@ fn capability_flags_are_bitflags() {
     assert_eq!(all.bits(), 7);
 }
 
+/// Verifies that Role can be serialized and deserialized correctly.
 #[test]
 fn message_role_roundtrips() {
     let user_role = Role::User;
@@ -57,7 +62,6 @@ fn message_role_roundtrips() {
 
     // Test serde: serialize and deserialize
     let user_json = serde_json::to_string(&user_role).expect("should serialize");
-    let user_deserialized: Role =
-        serde_json::from_str(&user_json).expect("should deserialize");
+    let user_deserialized: Role = serde_json::from_str(&user_json).expect("should deserialize");
     assert_eq!(user_deserialized, Role::User);
 }

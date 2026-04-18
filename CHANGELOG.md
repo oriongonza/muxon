@@ -20,6 +20,7 @@ Versioning: [Semantic Versioning](https://semver.org/) pre-1.0 model (see IMPLEM
 
 ### Added
 - feat(store): blob content-addressed storage (put/get, BLAKE3 hash, idempotent)
+- feat(tui): tree view data model for workspace/runtime/snapshot hierarchy
 - feat(proto): SSH remote transport seam (ssh.connect, ssh.disconnect, ssh.forward verbs + types)
 - feat(timetravel): snapshot history query API (resurreccion-timetravel crate)
 - feat(codex): OpenAI-compatible aigent backend (resurreccion-codex crate)

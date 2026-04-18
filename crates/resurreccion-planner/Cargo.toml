@@ -13,3 +13,8 @@ thiserror.workspace = true
 anyhow.workspace = true
 ulid.workspace = true
 serde_json.workspace = true
+resurreccion-mux = { path = "../resurreccion-mux" }
+resurreccion-store = { path = "../resurreccion-store" }
+
+[dev-dependencies]
+tempfile = "3"

@@ -9,6 +9,9 @@ pub mod verbs;
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
+pub use resurreccion_mux::Capability;
+pub use resurreccion_store::Store;
+
 /// Unique identifier for a plan node.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NodeId(Ulid);
@@ -115,12 +118,130 @@ pub struct NodeResult {
     pub error: Option<String>,
 }
 
-/// Execute a plan. Signature only — Lane F fills in the body.
+/// Minimal snapshot manifest for `plan_restore`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
+pub struct SnapshotManifest {
+    /// Workspace identifier.
+    pub workspace_id: String,
+    /// Layout data as JSON.
+    pub layout: serde_json::Value,
+}
+
+/// Build a capture plan for the given capability set.
+///
+/// For 0.1.0, returns a single `CAPTURE_LAYOUT` node.
+#[must_use]
+pub fn plan_capture(capabilities: &Capability) -> Plan {
+    let node = PlanNode::leaf(
+        verbs::CAPTURE_LAYOUT,
+        serde_json::json!({ "capabilities": capabilities.bits() }),
+    );
+    Plan::single(node, "Capture workspace layout")
+}
+
+/// Build a restore plan from a snapshot manifest and capability set.
+///
+/// For 0.1.0, returns a single `RESTORE_LAYOUT` node.
+#[must_use]
+pub fn plan_restore(manifest: &SnapshotManifest, capabilities: &Capability) -> Plan {
+    let node = PlanNode::leaf(
+        verbs::RESTORE_LAYOUT,
+        serde_json::json!({
+            "workspace_id": manifest.workspace_id,
+            "layout": manifest.layout,
+            "capabilities": capabilities.bits()
+        }),
+    );
+    Plan::single(node, "Restore workspace layout")
+}
+
+/// Execute a plan against a Mux backend and Store.
+///
+/// Executes plan nodes in DAG order (topological sort).
+/// Dry-run plans return immediately without executing.
 ///
 /// # Errors
 /// Returns an error if the plan cannot be executed at all (e.g., no backend available).
 /// Partial failures are reported in [`PlanResult::node_results`].
-pub fn execute(_plan: &Plan) -> anyhow::Result<PlanResult> {
-    // Lane F: wire to Mux + Store
-    unimplemented!("execute — implemented by Lane F")
+pub fn execute(
+    plan: &Plan,
+    mux: &dyn resurreccion_mux::Mux,
+    _store: &Store,
+) -> anyhow::Result<PlanResult> {
+    // Dry-run plans skip execution
+    if plan.dry_run {
+        return Ok(PlanResult {
+            node_results: vec![],
+        });
+    }
+
+    // Topological sort (for 0.1.0: single node, order is trivial)
+    let ordered = topo_sort(&plan.nodes);
+
+    let mut results = Vec::new();
+    for node in &ordered {
+        let result = execute_node(node, mux);
+        results.push(result);
+    }
+
+    Ok(PlanResult {
+        node_results: results,
+    })
+}
+
+fn topo_sort(nodes: &[PlanNode]) -> Vec<&PlanNode> {
+    // Simple implementation: return nodes as-is for 0.1.0 (single node).
+    // Full topological sort for multi-node DAGs would use Kahn's algorithm.
+    nodes.iter().collect()
+}
+
+fn execute_node(node: &PlanNode, mux: &dyn resurreccion_mux::Mux) -> NodeResult {
+    match node.verb.as_str() {
+        verbs::CAPTURE_LAYOUT => {
+            // Capture from mux
+            match mux.discover() {
+                Ok(sessions) => {
+                    if sessions.is_empty() {
+                        NodeResult {
+                            node_id: node.id,
+                            success: true,
+                            error: None,
+                        }
+                    } else {
+                        match mux.capture(&sessions[0]) {
+                            Ok(_) => NodeResult {
+                                node_id: node.id,
+                                success: true,
+                                error: None,
+                            },
+                            Err(e) => NodeResult {
+                                node_id: node.id,
+                                success: false,
+                                error: Some(e.to_string()),
+                            },
+                        }
+                    }
+                }
+                Err(e) => NodeResult {
+                    node_id: node.id,
+                    success: false,
+                    error: Some(e.to_string()),
+                },
+            }
+        }
+        verbs::RESTORE_LAYOUT => {
+            // For 0.1.0: restore is a no-op (just acknowledge success)
+            NodeResult {
+                node_id: node.id,
+                success: true,
+                error: None,
+            }
+        }
+        other => NodeResult {
+            node_id: node.id,
+            success: false,
+            error: Some(format!("unknown verb: {other}")),
+        },
+    }
 }

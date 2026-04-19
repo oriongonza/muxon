@@ -87,13 +87,15 @@ pub trait DagEvent: 'static {
 /// `edge_of::<WorkspaceCreated>("protocol", "store")` will fail to compile if
 /// `WorkspaceCreated` is removed or no longer implements [`DagEvent`].
 ///
+/// `const fn` — usable in `const` and `static` initializers.
+///
 /// ```rust
 /// # use resurreccion_dag::{dag_event, edge_of, DagEdge};
 /// dag_event!(Ping);
-/// let edge: DagEdge = edge_of::<Ping>("a", "b");
-/// assert_eq!(edge.event, "Ping");
+/// const E: DagEdge = edge_of::<Ping>("a", "b");
+/// assert_eq!(E.event, "Ping");
 /// ```
-pub fn edge_of<E: DagEvent>(from: &'static str, to: &'static str) -> DagEdge {
+pub const fn edge_of<E: DagEvent>(from: &'static str, to: &'static str) -> DagEdge {
     DagEdge::new(from, E::NAME, to)
 }
 
@@ -120,6 +122,39 @@ macro_rules! dag_event {
         impl $crate::DagEvent for $name {
             const NAME: &'static str = stringify!($name);
         }
+    };
+}
+
+/// Build a `&[DagEdge]` from a concise wiring list.
+///
+/// Each entry is `EventType: from_node -> to_node`. The event type must
+/// implement [`DagEvent`] (use [`dag_event!`] to define it). Node names
+/// are identifiers, stringified at compile time.
+///
+/// The result is const-evaluable — assign it to a `const` or `static`.
+///
+/// ```rust
+/// # use resurreccion_dag::{dag_event, edges, DagEdge, check_termination};
+/// dag_event!(Ping);
+/// dag_event!(Pong);
+///
+/// const WIRING: &[DagEdge] = edges![
+///     Ping: a -> b,
+///     Pong: b -> c,
+/// ];
+///
+/// assert!(check_termination(WIRING).is_ok());
+/// assert_eq!(WIRING[0].event, "Ping");
+/// ```
+#[macro_export]
+macro_rules! edges {
+    ($($event:ty : $from:ident -> $to:ident),* $(,)?) => {
+        &[$(
+            $crate::edge_of::<$event>(
+                ::core::stringify!($from),
+                ::core::stringify!($to),
+            )
+        ),*]
     };
 }
 
@@ -158,9 +193,32 @@ mod tests {
     }
 
     #[test]
+    fn edge_of_is_const() {
+        const E: DagEdge = edge_of::<Ping>("a", "b");
+        assert_eq!(E.from, "a");
+        assert_eq!(E.event, "Ping");
+        assert_eq!(E.to, "b");
+    }
+
+    #[test]
     fn edge_array_built_from_typed_edges() {
-        let edges = [edge_of::<Ping>("a", "b"), edge_of::<Pong>("b", "c")];
-        assert!(check_termination(&edges).is_ok());
-        assert!(check_completeness(&[], &edges).is_ok());
+        let arr = [edge_of::<Ping>("a", "b"), edge_of::<Pong>("b", "c")];
+        assert!(check_termination(&arr).is_ok());
+        assert!(check_completeness(&[], &arr).is_ok());
+    }
+
+    #[test]
+    fn edges_macro_produces_correct_wiring() {
+        const WIRING: &[DagEdge] = edges![Ping: a -> b, Pong: b -> c,];
+        assert_eq!(WIRING.len(), 2);
+        assert_eq!(WIRING[0], DagEdge::new("a", "Ping", "b"));
+        assert_eq!(WIRING[1], DagEdge::new("b", "Pong", "c"));
+    }
+
+    #[test]
+    fn edges_macro_wiring_passes_structural_checks() {
+        const WIRING: &[DagEdge] = edges![Ping: a -> b, Pong: b -> c,];
+        assert!(check_termination(WIRING).is_ok());
+        assert!(check_completeness(&[], WIRING).is_ok());
     }
 }

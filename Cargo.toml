@@ -13,6 +13,7 @@ authors = ["Ardi <ardi@local>"]
 repository = "https://github.com/ardi/muxon"
 
 [workspace.dependencies]
+resurreccion-dag = { path = "crates/resurreccion-dag" }
 rt-events = { path = "/home/ardi/repos/promethea/rt-events" }
 anyhow = "1"
 thiserror = "2"

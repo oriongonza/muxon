@@ -4,6 +4,8 @@
 
 /// Event bus and subscribers for the daemon.
 pub mod bus;
+/// Event topology — the executable architecture diagram.
+pub mod wiring;
 /// Capability negotiation handler.
 pub mod capability_handler;
 /// Verb dispatch and handler trait.

@@ -2,7 +2,7 @@
 
 use clap::Parser;
 use resurreccion_daemon::{
-    CapabilityHandler, Dispatcher, EventsSubscribeHandler, EventsTailHandler, Handler,
+    wiring, CapabilityHandler, Dispatcher, EventsSubscribeHandler, EventsTailHandler, Handler,
     SnapshotCreateHandler, SnapshotGetHandler, SnapshotListHandler, SnapshotRestoreHandler,
     WorkspaceCreateHandler, WorkspaceGetHandler, WorkspaceListHandler, WorkspaceOpenHandler,
     WorkspaceResolveOrCreateHandler,
@@ -61,6 +61,10 @@ async fn main() -> anyhow::Result<()> {
 
     match args.command {
         Commands::Serve { socket } => {
+            // Verify event topology before accepting any connections.
+            // A failure here is always a programming mistake.
+            wiring::verify()?;
+
             // Initialize store
             let store_path = get_store_path()?;
             let store = Store::open(&store_path)?;

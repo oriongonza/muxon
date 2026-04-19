@@ -18,6 +18,9 @@ macro_rules! daemon_event {
             pub $field: $ty,)*
         }
         impl DaemonEvent for $name {}
+        impl ::resurreccion_dag::DagEvent for $name {
+            const NAME: &'static str = stringify!($name);
+        }
     };
 }
 

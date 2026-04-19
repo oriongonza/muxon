@@ -9,6 +9,7 @@ workspace = true
 
 [dependencies]
 resurreccion-core = { path = "../resurreccion-core" }
+resurreccion-dag.workspace = true
 resurreccion-proto = { path = "../resurreccion-proto" }
 resurreccion-store = { path = "../resurreccion-store" }
 resurreccion-dir = { path = "../resurreccion-dir" }

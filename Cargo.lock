@@ -1301,6 +1301,7 @@ name = "resurreccion-core"
 version = "0.6.0"
 dependencies = [
  "blake3",
+ "resurreccion-dag",
  "serde",
  "thiserror 2.0.18",
  "ulid",
@@ -1314,6 +1315,7 @@ dependencies = [
  "clap",
  "directories",
  "resurreccion-core",
+ "resurreccion-dag",
  "resurreccion-dir",
  "resurreccion-mux",
  "resurreccion-planner",

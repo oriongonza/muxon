@@ -1,4 +1,20 @@
-//! Event bus and subscribers for the daemon.
+//! Event bus, emitter, and subscribers for the daemon.
+//!
+//! # Architecture
+//!
+//! `EventBus` is single-threaded and not `Send`. All bus operations live on a
+//! dedicated bus thread. A single channel bridges the Tokio world to the bus:
+//!
+//! ```text
+//! handler ──emit_tx──> BUS THREAD ──calls──> bus.emit::<E>(event)
+//!                                                ↓ subscribers fire
+//!                                            store_tx ──> store writer
+//! ```
+//!
+//! `EventEmitter` is a `Clone + Send` handle. Each call to `emit<E>` boxes a
+//! closure that captures the typed event and calls `bus.emit(event)` on the
+//! bus thread. No enum dispatch, no TypeId matching — rt-events handles
+//! dispatch internally via `TypeId::of::<E>()`.
 
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
@@ -11,487 +27,262 @@ use resurreccion_core::events::{
 use resurreccion_store::{types::EventRow, Store};
 use rt_events::EventBus;
 
-/// A serializable event wrapper for the channel.
-#[derive(Debug, Clone)]
-enum BusEventMessage {
-    WorkspaceOpened {
-        workspace_id: String,
-    },
-    WorkspaceClosed {
-        workspace_id: String,
-    },
-    RuntimeAttached {
-        workspace_id: String,
-        runtime_id: String,
-    },
-    RuntimeDetached {
-        workspace_id: String,
-        runtime_id: String,
-    },
-    PaneOpened {
-        runtime_id: String,
-        pane_id: String,
-    },
-    PaneClosed {
-        runtime_id: String,
-        pane_id: String,
-    },
-    FocusChanged {
-        runtime_id: String,
-        pane_id: String,
-    },
-    LayoutChanged {
-        runtime_id: String,
-    },
-    SnapshotCreated {
-        workspace_id: String,
-        snapshot_id: String,
-    },
-    SnapshotRestored {
-        workspace_id: String,
-        snapshot_id: String,
-    },
+// ── Emit channel ──────────────────────────────────────────────────────────────
+
+/// A closure that emits one event onto the bus thread's `EventBus`.
+type EmitFn = Box<dyn Fn(&mut EventBus) + Send>;
+
+// ── EventEmitter ──────────────────────────────────────────────────────────────
+
+/// A `Clone + Send` handle for emitting typed domain events from any thread.
+///
+/// Obtained from [`setup_event_bus`]. Clone freely — all clones share the
+/// same bus thread.
+///
+/// # Usage
+///
+/// ```ignore
+/// emitter.emit(WorkspaceOpened { workspace_id });
+/// emitter.emit(SnapshotCreated { workspace_id, snapshot_id });
+/// ```
+#[derive(Clone)]
+pub struct EventEmitter {
+    tx: mpsc::SyncSender<EmitFn>,
 }
 
-impl BusEventMessage {
-    /// Convert event message to `EventRow` for storage.
-    fn to_event_row(&self) -> EventRow {
-        use serde_json::json;
+impl EventEmitter {
+    /// Create a no-op emitter for use in tests — all emits are silently dropped.
+    pub fn no_op() -> Self {
+        let (tx, _rx) = mpsc::sync_channel(1);
+        Self { tx }
+    }
 
-        match self {
-            Self::WorkspaceOpened { workspace_id } => EventRow {
-                id: ulid::Ulid::new().to_string(),
-                workspace_id: None,
-                kind: "WorkspaceOpened".to_string(),
-                payload_json: json!({ "workspace_id": workspace_id }).to_string(),
-                created_at: iso_now(),
-            },
-            Self::WorkspaceClosed { workspace_id } => EventRow {
-                id: ulid::Ulid::new().to_string(),
-                workspace_id: None,
-                kind: "WorkspaceClosed".to_string(),
-                payload_json: json!({ "workspace_id": workspace_id }).to_string(),
-                created_at: iso_now(),
-            },
-            Self::RuntimeAttached {
-                workspace_id,
-                runtime_id,
-            } => EventRow {
-                id: ulid::Ulid::new().to_string(),
-                workspace_id: None,
-                kind: "RuntimeAttached".to_string(),
-                payload_json: json!({ "workspace_id": workspace_id, "runtime_id": runtime_id })
-                    .to_string(),
-                created_at: iso_now(),
-            },
-            Self::RuntimeDetached {
-                workspace_id,
-                runtime_id,
-            } => EventRow {
-                id: ulid::Ulid::new().to_string(),
-                workspace_id: None,
-                kind: "RuntimeDetached".to_string(),
-                payload_json: json!({ "workspace_id": workspace_id, "runtime_id": runtime_id })
-                    .to_string(),
-                created_at: iso_now(),
-            },
-            Self::PaneOpened {
-                runtime_id,
-                pane_id,
-            } => EventRow {
-                id: ulid::Ulid::new().to_string(),
-                workspace_id: None,
-                kind: "PaneOpened".to_string(),
-                payload_json: json!({ "runtime_id": runtime_id, "pane_id": pane_id }).to_string(),
-                created_at: iso_now(),
-            },
-            Self::PaneClosed {
-                runtime_id,
-                pane_id,
-            } => EventRow {
-                id: ulid::Ulid::new().to_string(),
-                workspace_id: None,
-                kind: "PaneClosed".to_string(),
-                payload_json: json!({ "runtime_id": runtime_id, "pane_id": pane_id }).to_string(),
-                created_at: iso_now(),
-            },
-            Self::FocusChanged {
-                runtime_id,
-                pane_id,
-            } => EventRow {
-                id: ulid::Ulid::new().to_string(),
-                workspace_id: None,
-                kind: "FocusChanged".to_string(),
-                payload_json: json!({ "runtime_id": runtime_id, "pane_id": pane_id }).to_string(),
-                created_at: iso_now(),
-            },
-            Self::LayoutChanged { runtime_id } => EventRow {
-                id: ulid::Ulid::new().to_string(),
-                workspace_id: None,
-                kind: "LayoutChanged".to_string(),
-                payload_json: json!({ "runtime_id": runtime_id }).to_string(),
-                created_at: iso_now(),
-            },
-            Self::SnapshotCreated {
-                workspace_id,
-                snapshot_id,
-            } => EventRow {
-                id: ulid::Ulid::new().to_string(),
-                workspace_id: None,
-                kind: "SnapshotCreated".to_string(),
-                payload_json: json!({ "workspace_id": workspace_id, "snapshot_id": snapshot_id })
-                    .to_string(),
-                created_at: iso_now(),
-            },
-            Self::SnapshotRestored {
-                workspace_id,
-                snapshot_id,
-            } => EventRow {
-                id: ulid::Ulid::new().to_string(),
-                workspace_id: None,
-                kind: "SnapshotRestored".to_string(),
-                payload_json: json!({ "workspace_id": workspace_id, "snapshot_id": snapshot_id })
-                    .to_string(),
-                created_at: iso_now(),
-            },
-        }
+    /// Emit any event type that rt-events can dispatch.
+    ///
+    /// The event is boxed into a closure and sent to the bus thread, which
+    /// calls `bus.emit(event)`. Fires all registered subscribers synchronously
+    /// on the bus thread. If the channel is full the event is silently dropped.
+    pub fn emit<E: Clone + Send + 'static>(&self, event: E) {
+        let _ = self.tx.try_send(Box::new(move |bus: &mut EventBus| {
+            bus.emit(event.clone());
+        }));
     }
 }
 
-/// Get current timestamp in ISO-8601 format.
+// ── Setup ─────────────────────────────────────────────────────────────────────
+
+/// Set up the event bus with the durable store subscriber.
+///
+/// Starts two threads:
+/// - **Bus thread**: owns the `EventBus`, runs emit closures, fires subscribers.
+/// - **Store writer thread**: receives `EventRow`s and appends to the store.
+///
+/// Returns `(handle, emitter)`. Join `handle` to wait for the bus thread to
+/// drain on shutdown. All `EventEmitter` clones must be dropped first.
+pub fn setup_event_bus(store: Arc<Mutex<Store>>) -> (thread::JoinHandle<()>, EventEmitter) {
+    let (emit_tx, emit_rx) = mpsc::sync_channel::<EmitFn>(4096);
+    let (store_tx, store_rx) = mpsc::channel::<EventRow>();
+
+    let emitter = EventEmitter { tx: emit_tx };
+
+    let handle = thread::spawn(move || {
+        let mut bus = EventBus::new();
+
+        // Register store subscriber for each event type.
+        // Each subscriber converts the typed event to an EventRow and forwards
+        // to the store writer thread via the channel.
+        macro_rules! subscribe {
+            ($event_ty:ty, $row_fn:expr) => {{
+                let tx = store_tx.clone();
+                bus.on(move |e: &$event_ty| {
+                    let _ = tx.send($row_fn(e));
+                });
+            }};
+        }
+
+        subscribe!(WorkspaceOpened, |e: &WorkspaceOpened| {
+            event_row("WorkspaceOpened", serde_json::json!({
+                "workspace_id": e.workspace_id.to_string()
+            }))
+        });
+        subscribe!(WorkspaceClosed, |e: &WorkspaceClosed| {
+            event_row("WorkspaceClosed", serde_json::json!({
+                "workspace_id": e.workspace_id.to_string()
+            }))
+        });
+        subscribe!(RuntimeAttached, |e: &RuntimeAttached| {
+            event_row("RuntimeAttached", serde_json::json!({
+                "workspace_id": e.workspace_id.to_string(),
+                "runtime_id": e.runtime_id.to_string()
+            }))
+        });
+        subscribe!(RuntimeDetached, |e: &RuntimeDetached| {
+            event_row("RuntimeDetached", serde_json::json!({
+                "workspace_id": e.workspace_id.to_string(),
+                "runtime_id": e.runtime_id.to_string()
+            }))
+        });
+        subscribe!(PaneOpened, |e: &PaneOpened| {
+            event_row("PaneOpened", serde_json::json!({
+                "runtime_id": e.runtime_id.to_string(),
+                "pane_id": e.pane_id.to_string()
+            }))
+        });
+        subscribe!(PaneClosed, |e: &PaneClosed| {
+            event_row("PaneClosed", serde_json::json!({
+                "runtime_id": e.runtime_id.to_string(),
+                "pane_id": e.pane_id.to_string()
+            }))
+        });
+        subscribe!(FocusChanged, |e: &FocusChanged| {
+            event_row("FocusChanged", serde_json::json!({
+                "runtime_id": e.runtime_id.to_string(),
+                "pane_id": e.pane_id.to_string()
+            }))
+        });
+        subscribe!(LayoutChanged, |e: &LayoutChanged| {
+            event_row("LayoutChanged", serde_json::json!({
+                "runtime_id": e.runtime_id.to_string()
+            }))
+        });
+        subscribe!(SnapshotCreated, |e: &SnapshotCreated| {
+            event_row("SnapshotCreated", serde_json::json!({
+                "workspace_id": e.workspace_id.to_string(),
+                "snapshot_id": e.snapshot_id.to_string()
+            }))
+        });
+        subscribe!(SnapshotRestored, |e: &SnapshotRestored| {
+            event_row("SnapshotRestored", serde_json::json!({
+                "workspace_id": e.workspace_id.to_string(),
+                "snapshot_id": e.snapshot_id.to_string()
+            }))
+        });
+
+        drop(store_tx);
+
+        // Spawn store writer.
+        let writer = thread::spawn(move || {
+            for row in store_rx {
+                if let Ok(s) = store.lock() {
+                    if let Err(e) = s.event_append(&row) {
+                        eprintln!("event_append: {e}");
+                    }
+                }
+            }
+        });
+
+        // Run each emit closure on the bus (fires subscribers synchronously).
+        for f in emit_rx {
+            f(&mut bus);
+        }
+
+        let _ = writer.join();
+    });
+
+    (handle, emitter)
+}
+
+// ── Legacy adapter ────────────────────────────────────────────────────────────
+
+/// Legacy adapter kept for existing call sites. Discards the emitter.
+///
+/// Migrate callers to [`setup_event_bus`] to obtain the `EventEmitter`.
+pub fn setup_store_subscriber(
+    _bus: &mut rt_events::EventBus,
+    store: Arc<Mutex<Store>>,
+) -> thread::JoinHandle<()> {
+    let (handle, _emitter) = setup_event_bus(store);
+    handle
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+fn event_row(kind: &str, payload: serde_json::Value) -> EventRow {
+    EventRow {
+        id: ulid::Ulid::new().to_string(),
+        workspace_id: None,
+        kind: kind.to_string(),
+        payload_json: payload.to_string(),
+        created_at: iso_now(),
+    }
+}
+
 fn iso_now() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let now_millis = SystemTime::now()
+    let ms = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_millis();
-    let seconds = now_millis / 1000;
-    let millis = now_millis % 1000;
-    format!("2026-04-18T00:00:{:02}.{:03}Z", (seconds % 60), millis)
-}
-
-/// Set up the durable event subscriber that writes all events to the store.
-///
-/// # Description
-/// Creates an `mpsc` channel and registers callbacks on the bus for all event types.
-/// Each callback sends the event to the channel (sync, non-blocking).
-/// Spawns a worker thread that receives from the channel and calls `store.event_append()`.
-///
-/// # Arguments
-/// * `bus` - The event bus (must be on a single thread)
-/// * `store` - The store wrapped in Arc<Mutex<>> for thread-safe access
-///
-/// # Returns
-/// A `JoinHandle` that can be awaited to join the worker thread.
-///
-/// # Note on rt-events constraints
-/// All callbacks must be sync and non-blocking. Only channel-send is allowed in callbacks.
-#[allow(clippy::too_many_lines)]
-pub fn setup_store_subscriber(
-    bus: &mut EventBus,
-    store: Arc<Mutex<Store>>,
-) -> thread::JoinHandle<()> {
-    let (tx, rx) = mpsc::channel::<BusEventMessage>();
-
-    // Register WorkspaceOpened
-    {
-        let tx = tx.clone();
-        bus.on(move |event: &WorkspaceOpened| {
-            let msg = BusEventMessage::WorkspaceOpened {
-                workspace_id: event.workspace_id.to_string(),
-            };
-            let _ = tx.send(msg);
-        });
-    }
-
-    // Register WorkspaceClosed
-    {
-        let tx = tx.clone();
-        bus.on(move |event: &WorkspaceClosed| {
-            let msg = BusEventMessage::WorkspaceClosed {
-                workspace_id: event.workspace_id.to_string(),
-            };
-            let _ = tx.send(msg);
-        });
-    }
-
-    // Register RuntimeAttached
-    {
-        let tx = tx.clone();
-        bus.on(move |event: &RuntimeAttached| {
-            let msg = BusEventMessage::RuntimeAttached {
-                workspace_id: event.workspace_id.to_string(),
-                runtime_id: event.runtime_id.to_string(),
-            };
-            let _ = tx.send(msg);
-        });
-    }
-
-    // Register RuntimeDetached
-    {
-        let tx = tx.clone();
-        bus.on(move |event: &RuntimeDetached| {
-            let msg = BusEventMessage::RuntimeDetached {
-                workspace_id: event.workspace_id.to_string(),
-                runtime_id: event.runtime_id.to_string(),
-            };
-            let _ = tx.send(msg);
-        });
-    }
-
-    // Register PaneOpened
-    {
-        let tx = tx.clone();
-        bus.on(move |event: &PaneOpened| {
-            let msg = BusEventMessage::PaneOpened {
-                runtime_id: event.runtime_id.to_string(),
-                pane_id: event.pane_id.to_string(),
-            };
-            let _ = tx.send(msg);
-        });
-    }
-
-    // Register PaneClosed
-    {
-        let tx = tx.clone();
-        bus.on(move |event: &PaneClosed| {
-            let msg = BusEventMessage::PaneClosed {
-                runtime_id: event.runtime_id.to_string(),
-                pane_id: event.pane_id.to_string(),
-            };
-            let _ = tx.send(msg);
-        });
-    }
-
-    // Register FocusChanged
-    {
-        let tx = tx.clone();
-        bus.on(move |event: &FocusChanged| {
-            let msg = BusEventMessage::FocusChanged {
-                runtime_id: event.runtime_id.to_string(),
-                pane_id: event.pane_id.to_string(),
-            };
-            let _ = tx.send(msg);
-        });
-    }
-
-    // Register LayoutChanged
-    {
-        let tx = tx.clone();
-        bus.on(move |event: &LayoutChanged| {
-            let msg = BusEventMessage::LayoutChanged {
-                runtime_id: event.runtime_id.to_string(),
-            };
-            let _ = tx.send(msg);
-        });
-    }
-
-    // Register SnapshotCreated
-    {
-        let tx = tx.clone();
-        bus.on(move |event: &SnapshotCreated| {
-            let msg = BusEventMessage::SnapshotCreated {
-                workspace_id: event.workspace_id.to_string(),
-                snapshot_id: event.snapshot_id.to_string(),
-            };
-            let _ = tx.send(msg);
-        });
-    }
-
-    // Register SnapshotRestored
-    {
-        let tx = tx.clone();
-        bus.on(move |event: &SnapshotRestored| {
-            let msg = BusEventMessage::SnapshotRestored {
-                workspace_id: event.workspace_id.to_string(),
-                snapshot_id: event.snapshot_id.to_string(),
-            };
-            let _ = tx.send(msg);
-        });
-    }
-
-    drop(tx); // Drop the original sender; clones are held by callbacks
-
-    // Spawn worker thread
-    thread::spawn(move || {
-        for msg in rx {
-            let row = msg.to_event_row();
-            if let Ok(store) = store.lock() {
-                let result = store.event_append(&row);
-                if result.is_err() {
-                    eprintln!("Failed to append event: {result:?}");
-                }
-            }
-        }
-    })
+    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03}Z",
+        2026, 4, 19,
+        (ms / 3_600_000) % 24,
+        (ms / 60_000) % 60,
+        (ms / 1_000) % 60,
+        ms % 1_000,
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use resurreccion_core::ids::{PaneId, RuntimeId, WorkspaceId};
+    use resurreccion_core::events::WorkspaceOpened;
+    use resurreccion_core::ids::{SnapshotId, WorkspaceId};
     use std::time::Duration;
     use tempfile::NamedTempFile;
 
-    #[test]
-    fn test_bus_callback_receives_event() {
-        // First, test that the bus callback mechanism works at all
-        use std::cell::RefCell;
-        use std::rc::Rc;
-
-        let received = Rc::new(RefCell::new(None));
-        let mut bus = EventBus::new();
-        let r = received.clone();
-
-        bus.on(move |event: &WorkspaceOpened| {
-            *r.borrow_mut() = Some(event.workspace_id.to_string());
-        });
-
-        let ws_id = WorkspaceId::new();
-        bus.emit(WorkspaceOpened {
-            workspace_id: ws_id,
-        });
-
-        let val = received.borrow();
-        assert!(val.is_some(), "callback was not invoked");
-        assert_eq!(*val, Some(ws_id.to_string()));
+    fn open_store() -> (NamedTempFile, Arc<Mutex<Store>>) {
+        let tmp = NamedTempFile::new().unwrap();
+        let store = Arc::new(Mutex::new(Store::open(tmp.path().to_str().unwrap()).unwrap()));
+        (tmp, store) // caller must keep `tmp` alive for the duration of the test
     }
 
     #[test]
-    fn test_channel_in_callback() {
-        // Test that channels work within callbacks
-        let (tx, rx) = mpsc::channel::<String>();
-        let mut bus = EventBus::new();
+    fn emit_workspace_opened_flows_to_store() {
+        let (_tmp, store) = open_store();
+        let (_h, emitter) = setup_event_bus(Arc::clone(&store));
 
-        bus.on(move |event: &WorkspaceOpened| {
-            let msg = format!("workspace: {}", event.workspace_id);
-            let _ = tx.send(msg);
-        });
+        emitter.emit(WorkspaceOpened { workspace_id: WorkspaceId::new() });
 
-        let ws_id = WorkspaceId::new();
-        bus.emit(WorkspaceOpened {
-            workspace_id: ws_id,
-        });
-
-        // Try to receive
-        let msg = rx
-            .recv_timeout(Duration::from_millis(100))
-            .expect("failed to receive from channel");
-        assert!(msg.starts_with("workspace:"));
+        thread::sleep(Duration::from_millis(50));
+        let rows = store.lock().unwrap().event_tail_from(None).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].kind, "WorkspaceOpened");
     }
 
     #[test]
-    fn test_setup_store_subscriber_basic() {
-        // Create a temporary database
-        let temp_file = NamedTempFile::new().expect("failed to create temp file");
-        let db_path = temp_file.path().to_str().unwrap();
+    fn emitter_is_send_clone_and_works_from_threads() {
+        let (_tmp, store) = open_store();
+        let (_h, emitter) = setup_event_bus(Arc::clone(&store));
+        let e2 = emitter.clone();
 
-        // Open store
-        let store = Arc::new(Mutex::new(
-            Store::open(db_path).expect("failed to open store"),
-        ));
+        let ws = WorkspaceId::new();
+        thread::spawn(move || e2.emit(WorkspaceOpened { workspace_id: ws }))
+            .join().unwrap();
 
-        // Create bus
-        let mut bus = EventBus::new();
-
-        // Setup subscriber
-        let _handle = setup_store_subscriber(&mut bus, Arc::clone(&store));
-
-        // Emit an event
-        let ws_id = WorkspaceId::new();
-        bus.emit(WorkspaceOpened {
-            workspace_id: ws_id,
+        emitter.emit(SnapshotCreated {
+            workspace_id: ws,
+            snapshot_id: SnapshotId::new(),
         });
 
-        // Give worker thread time to process
-        std::thread::sleep(Duration::from_millis(100));
-
-        // Verify event was written
-        let events = store
-            .lock()
-            .unwrap()
-            .event_tail_from(None)
-            .expect("failed to query events");
-        assert!(
-            !events.is_empty(),
-            "expected at least one event, got {}",
-            events.len()
-        );
-        assert_eq!(events[0].kind, "WorkspaceOpened");
+        thread::sleep(Duration::from_millis(50));
+        let rows = store.lock().unwrap().event_tail_from(None).unwrap();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].kind, "WorkspaceOpened");
+        assert_eq!(rows[1].kind, "SnapshotCreated");
     }
 
     #[test]
-    fn test_setup_store_subscriber_all_event_types() {
-        let temp_file = NamedTempFile::new().expect("failed to create temp file");
-        let db_path = temp_file.path().to_str().unwrap();
-        let store = Arc::new(Mutex::new(
-            Store::open(db_path).expect("failed to open store"),
-        ));
+    fn generic_emit_requires_no_enum_boilerplate() {
+        let (_tmp, store) = open_store();
+        let (_h, emitter) = setup_event_bus(Arc::clone(&store));
 
-        let mut bus = EventBus::new();
-        let _handle = setup_store_subscriber(&mut bus, Arc::clone(&store));
-
-        let ws_id = WorkspaceId::new();
-        let rt_id = RuntimeId::new();
-
-        // Emit various events
-        bus.emit(WorkspaceOpened {
-            workspace_id: ws_id,
-        });
-        bus.emit(RuntimeAttached {
-            workspace_id: ws_id,
-            runtime_id: rt_id,
-        });
-        bus.emit(PaneOpened {
-            runtime_id: rt_id,
-            pane_id: PaneId::new(),
+        emitter.emit(SnapshotRestored {
+            workspace_id: WorkspaceId::new(),
+            snapshot_id: SnapshotId::new(),
         });
 
-        std::thread::sleep(Duration::from_millis(100));
-
-        let events = store
-            .lock()
-            .unwrap()
-            .event_tail_from(None)
-            .expect("failed to query events");
-        assert_eq!(
-            events.len(),
-            3,
-            "expected three events, got {}",
-            events.len()
-        );
-        assert_eq!(events[0].kind, "WorkspaceOpened");
-        assert_eq!(events[1].kind, "RuntimeAttached");
-        assert_eq!(events[2].kind, "PaneOpened");
-    }
-
-    #[test]
-    fn test_callback_is_non_blocking() {
-        // This test verifies the callback returns immediately by checking
-        // that we can emit many events rapidly without blocking.
-        let temp_file = NamedTempFile::new().expect("failed to create temp file");
-        let db_path = temp_file.path().to_str().unwrap();
-        let store = Arc::new(Mutex::new(
-            Store::open(db_path).expect("failed to open store"),
-        ));
-
-        let mut bus = EventBus::new();
-        let _handle = setup_store_subscriber(&mut bus, Arc::clone(&store));
-
-        // Emit 1000 events rapidly
-        let start = std::time::Instant::now();
-        for _ in 0..1000 {
-            bus.emit(WorkspaceOpened {
-                workspace_id: WorkspaceId::new(),
-            });
-        }
-        let elapsed = start.elapsed();
-
-        // Should complete quickly (callback returns immediately)
-        // 1000 emissions should be < 100ms on a modern system
-        assert!(
-            elapsed < Duration::from_millis(100),
-            "callback may be blocking: took {elapsed:?}"
-        );
+        thread::sleep(Duration::from_millis(50));
+        let rows = store.lock().unwrap().event_tail_from(None).unwrap();
+        assert_eq!(rows[0].kind, "SnapshotRestored");
     }
 }

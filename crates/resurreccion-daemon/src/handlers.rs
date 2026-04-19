@@ -6,7 +6,10 @@
     clippy::missing_const_for_fn
 )]
 
+use crate::bus::EventEmitter;
 use crate::dispatch::Handler;
+use resurreccion_core::events::{SnapshotCreated, SnapshotRestored, WorkspaceOpened};
+use resurreccion_core::ids::{SnapshotId, WorkspaceId};
 use resurreccion_dir::{canonicalize, compose_binding_key, detect_git, Scope};
 use resurreccion_mux::Mux;
 use resurreccion_planner::{plan_capture, plan_restore, SnapshotManifest};
@@ -14,7 +17,6 @@ use resurreccion_proto::Envelope;
 use resurreccion_store::types::{SnapshotRow, WorkspaceRow};
 use resurreccion_store::Store;
 use std::sync::{Arc, Mutex};
-use ulid::Ulid;
 
 /// Handler for `workspace.list` — list all workspaces.
 pub struct WorkspaceListHandler {
@@ -71,9 +73,10 @@ impl Handler for WorkspaceCreateHandler {
             .and_then(|v| v.as_str())
             .unwrap_or("");
 
+        let workspace_id = WorkspaceId::new();
         let now = chrono_now();
         let row = WorkspaceRow {
-            id: Ulid::new().to_string(),
+            id: workspace_id.to_string(),
             binding_key: binding_key.to_string(),
             display_name: display_name.to_string(),
             root_path: root_path.to_string(),
@@ -152,9 +155,10 @@ impl Handler for WorkspaceResolveOrCreateHandler {
         drop(store_guard);
 
         // Create new workspace
+        let workspace_id = WorkspaceId::new();
         let now = chrono_now();
         let row = WorkspaceRow {
-            id: Ulid::new().to_string(),
+            id: workspace_id.to_string(),
             binding_key: binding_key.to_string(),
             display_name: display_name.to_string(),
             root_path: root_path.to_string(),
@@ -172,12 +176,13 @@ impl Handler for WorkspaceResolveOrCreateHandler {
 /// Handler for `workspace.open` — open or create workspace, attach Mux.
 pub struct WorkspaceOpenHandler {
     store: Arc<Mutex<Store>>,
+    emitter: EventEmitter,
 }
 
 impl WorkspaceOpenHandler {
     /// Create a new workspace open handler.
-    pub fn new(store: Arc<Mutex<Store>>) -> Self {
-        Self { store }
+    pub fn new(store: Arc<Mutex<Store>>, emitter: EventEmitter) -> Self {
+        Self { store, emitter }
     }
 }
 
@@ -209,44 +214,41 @@ impl Handler for WorkspaceOpenHandler {
 
         // Try to get existing workspace by binding key
         if let Ok(Some(existing)) = store_guard.workspace_get_by_key(&binding_key_str) {
-            // Update last_opened_at
             drop(store_guard);
-            if let Ok(_) = self.store.lock().unwrap().workspace_touch(&existing.id) {
-                if let Ok(Some(updated)) = self.store.lock().unwrap().workspace_get(&existing.id) {
-                    return Envelope::ok(
-                        &env.id,
-                        &env.verb,
-                        serde_json::to_value(updated).unwrap(),
-                    );
-                }
+            let _ = self.store.lock().unwrap().workspace_touch(&existing.id);
+            if let Ok(ws_id) = existing.id.parse::<WorkspaceId>() {
+                self.emitter.emit(WorkspaceOpened { workspace_id: ws_id });
             }
-            return Envelope::ok(&env.id, &env.verb, serde_json::to_value(existing).unwrap());
+            let resp = self.store.lock().unwrap().workspace_get(&existing.id)
+                .ok().flatten()
+                .map(|r| serde_json::to_value(r).unwrap())
+                .unwrap_or_else(|| serde_json::to_value(&existing).unwrap());
+            return Envelope::ok(&env.id, &env.verb, resp);
         }
 
         drop(store_guard);
 
         // Create new workspace
+        let workspace_id = WorkspaceId::new();
         let display_name = canonical.file_name().unwrap_or("workspace").to_string();
-        let now = chrono_now();
         let row = WorkspaceRow {
-            id: Ulid::new().to_string(),
+            id: workspace_id.to_string(),
             binding_key: binding_key_str,
             display_name,
             root_path: canonical.to_string(),
-            created_at: now,
+            created_at: chrono_now(),
             last_opened_at: None,
         };
 
         match self.store.lock().unwrap().workspace_insert(&row) {
             Ok(()) => {
-                // Touch to update last_opened_at
                 let _ = self.store.lock().unwrap().workspace_touch(&row.id);
-                let get_result = self.store.lock().unwrap().workspace_get(&row.id);
-                if let Ok(Some(updated)) = get_result {
-                    Envelope::ok(&env.id, &env.verb, serde_json::to_value(updated).unwrap())
-                } else {
-                    Envelope::ok(&env.id, &env.verb, serde_json::to_value(&row).unwrap())
-                }
+                self.emitter.emit(WorkspaceOpened { workspace_id });
+                let resp = self.store.lock().unwrap().workspace_get(&row.id)
+                    .ok().flatten()
+                    .map(|r| serde_json::to_value(r).unwrap())
+                    .unwrap_or_else(|| serde_json::to_value(&row).unwrap());
+                Envelope::ok(&env.id, &env.verb, resp)
             }
             Err(e) => Envelope::err(&env.id, &env.verb, "internal", e.to_string()),
         }
@@ -257,49 +259,41 @@ impl Handler for WorkspaceOpenHandler {
 pub struct SnapshotCreateHandler {
     store: Arc<Mutex<Store>>,
     mux: Arc<dyn Mux>,
+    emitter: EventEmitter,
 }
 
 impl SnapshotCreateHandler {
     /// Create a new snapshot create handler.
-    pub fn new(store: Arc<Mutex<Store>>, mux: Arc<dyn Mux>) -> Self {
-        Self { store, mux }
+    pub fn new(store: Arc<Mutex<Store>>, mux: Arc<dyn Mux>, emitter: EventEmitter) -> Self {
+        Self { store, mux, emitter }
     }
 }
 
 impl Handler for SnapshotCreateHandler {
     fn handle(&self, env: &Envelope) -> Envelope {
-        let workspace_id = env
+        let workspace_id_str = env
             .body
             .get("workspace_id")
             .and_then(|v| v.as_str())
             .unwrap_or("");
 
-        if workspace_id.is_empty() {
-            return Envelope::err(
-                &env.id,
-                &env.verb,
-                "missing_workspace_id",
-                "workspace_id required",
-            );
-        }
+        let workspace_id = match workspace_id_str.parse::<WorkspaceId>() {
+            Ok(id) => id,
+            Err(_) => return Envelope::err(
+                &env.id, &env.verb, "missing_workspace_id", "workspace_id required",
+            ),
+        };
 
-        // Get capabilities from Mux
         let capabilities = self.mux.capabilities();
-
-        // Build capture plan
         let plan = plan_capture(&capabilities);
 
-        // Execute plan
-        match resurreccion_planner::execute(&plan, self.mux.as_ref(), &self.store.lock().unwrap()) {
-            Ok(_) => {
-                // Plan executed successfully
-            }
-            Err(e) => {
-                return Envelope::err(&env.id, &env.verb, "plan_execution_failed", e.to_string());
-            }
+        if let Err(e) = resurreccion_planner::execute(
+            &plan, self.mux.as_ref(), &self.store.lock().unwrap()
+        ) {
+            return Envelope::err(&env.id, &env.verb, "plan_execution_failed", e.to_string());
         }
 
-        // For now, we use a minimal manifest JSON. In production, this would contain actual capture data.
+        let snapshot_id = SnapshotId::new();
         let manifest_json = serde_json::json!({
             "fidelity": "basic",
             "captured_at": chrono_now(),
@@ -307,7 +301,7 @@ impl Handler for SnapshotCreateHandler {
         .to_string();
 
         let snapshot = SnapshotRow {
-            id: Ulid::new().to_string(),
+            id: snapshot_id.to_string(),
             workspace_id: workspace_id.to_string(),
             runtime_id: None,
             fidelity: "basic".to_string(),
@@ -316,7 +310,10 @@ impl Handler for SnapshotCreateHandler {
         };
 
         match self.store.lock().unwrap().snapshot_insert(&snapshot) {
-            Ok(()) => Envelope::ok(&env.id, &env.verb, serde_json::to_value(&snapshot).unwrap()),
+            Ok(()) => {
+                self.emitter.emit(SnapshotCreated { workspace_id, snapshot_id });
+                Envelope::ok(&env.id, &env.verb, serde_json::to_value(&snapshot).unwrap())
+            }
             Err(e) => Envelope::err(&env.id, &env.verb, "internal", e.to_string()),
         }
     }
@@ -326,12 +323,13 @@ impl Handler for SnapshotCreateHandler {
 pub struct SnapshotRestoreHandler {
     store: Arc<Mutex<Store>>,
     mux: Arc<dyn Mux>,
+    emitter: EventEmitter,
 }
 
 impl SnapshotRestoreHandler {
     /// Create a new snapshot restore handler.
-    pub fn new(store: Arc<Mutex<Store>>, mux: Arc<dyn Mux>) -> Self {
-        Self { store, mux }
+    pub fn new(store: Arc<Mutex<Store>>, mux: Arc<dyn Mux>, emitter: EventEmitter) -> Self {
+        Self { store, mux, emitter }
     }
 }
 
@@ -375,7 +373,9 @@ impl Handler for SnapshotRestoreHandler {
             }
         };
 
-        // Create a manifest structure for the planner
+        // Capture IDs before snapshot is moved into the manifest.
+        let snapshot_workspace_id = snapshot.workspace_id.clone();
+
         let manifest = SnapshotManifest {
             workspace_id: snapshot.workspace_id,
             layout: manifest_value
@@ -387,11 +387,17 @@ impl Handler for SnapshotRestoreHandler {
         let capabilities = self.mux.capabilities();
         let plan = plan_restore(&manifest, &capabilities);
 
-        // Execute plan
         if let Err(e) =
             resurreccion_planner::execute(&plan, self.mux.as_ref(), &self.store.lock().unwrap())
         {
             return Envelope::err(&env.id, &env.verb, "plan_execution_failed", e.to_string());
+        }
+
+        if let (Ok(ws_id), Ok(snap_id)) = (
+            snapshot_workspace_id.parse::<WorkspaceId>(),
+            snapshot_id.parse::<SnapshotId>(),
+        ) {
+            self.emitter.emit(SnapshotRestored { workspace_id: ws_id, snapshot_id: snap_id });
         }
 
         Envelope::ok(

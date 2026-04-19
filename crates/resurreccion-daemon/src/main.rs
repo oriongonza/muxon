@@ -2,10 +2,10 @@
 
 use clap::Parser;
 use resurreccion_daemon::{
-    wiring, CapabilityHandler, Dispatcher, EventsSubscribeHandler, EventsTailHandler, Handler,
-    SnapshotCreateHandler, SnapshotGetHandler, SnapshotListHandler, SnapshotRestoreHandler,
-    WorkspaceCreateHandler, WorkspaceGetHandler, WorkspaceListHandler, WorkspaceOpenHandler,
-    WorkspaceResolveOrCreateHandler,
+    setup_event_bus, wiring, CapabilityHandler, Dispatcher, EventsSubscribeHandler,
+    EventsTailHandler, Handler, SnapshotCreateHandler, SnapshotGetHandler, SnapshotListHandler,
+    SnapshotRestoreHandler, WorkspaceCreateHandler, WorkspaceGetHandler, WorkspaceListHandler,
+    WorkspaceOpenHandler, WorkspaceResolveOrCreateHandler,
 };
 use resurreccion_mux::Mux;
 use resurreccion_proto::verbs;
@@ -73,6 +73,9 @@ async fn main() -> anyhow::Result<()> {
             // Initialize Mux
             let mux: Arc<dyn Mux> = Arc::new(ZellijMux);
 
+            // Start event bus and get the emitter that handlers use to emit domain events.
+            let (_bus_handle, emitter) = setup_event_bus(store.clone());
+
             // Create dispatcher
             let mut dispatcher = Dispatcher::new();
 
@@ -99,17 +102,17 @@ async fn main() -> anyhow::Result<()> {
             );
             dispatcher.register(
                 verbs::WORKSPACE_OPEN,
-                Arc::new(WorkspaceOpenHandler::new(store.clone())),
+                Arc::new(WorkspaceOpenHandler::new(store.clone(), emitter.clone())),
             );
 
             // Register snapshot handlers
             dispatcher.register(
                 verbs::SNAPSHOT_CREATE,
-                Arc::new(SnapshotCreateHandler::new(store.clone(), mux.clone())),
+                Arc::new(SnapshotCreateHandler::new(store.clone(), mux.clone(), emitter.clone())),
             );
             dispatcher.register(
                 verbs::SNAPSHOT_RESTORE,
-                Arc::new(SnapshotRestoreHandler::new(store.clone(), mux.clone())),
+                Arc::new(SnapshotRestoreHandler::new(store.clone(), mux.clone(), emitter.clone())),
             );
             dispatcher.register(
                 verbs::SNAPSHOT_LIST,

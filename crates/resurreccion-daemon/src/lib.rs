@@ -20,7 +20,7 @@ pub mod runtime;
 #[cfg(test)]
 mod bus_test;
 
-pub use bus::setup_store_subscriber;
+pub use bus::{setup_event_bus, setup_store_subscriber, EventEmitter};
 pub use capability_handler::CapabilityHandler;
 pub use dispatch::{Dispatcher, Handler};
 pub use events_handler::EventsSubscribeHandler;

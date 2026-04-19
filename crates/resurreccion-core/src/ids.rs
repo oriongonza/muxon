@@ -30,6 +30,13 @@ macro_rules! ulid_id {
                 self.0.fmt(f)
             }
         }
+
+        impl std::str::FromStr for $name {
+            type Err = ulid::DecodeError;
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                s.parse::<Ulid>().map(Self)
+            }
+        }
     };
 }
 

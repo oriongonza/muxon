@@ -94,6 +94,7 @@ fn snapshot_create_and_list() {
         Arc::new(resurreccion_daemon::SnapshotCreateHandler::new(
             store.clone(),
             mux.clone(),
+            resurreccion_daemon::EventEmitter::no_op(),
         )),
     );
     dispatcher.register(
@@ -179,6 +180,7 @@ fn snapshot_get_returns_row() {
         Arc::new(resurreccion_daemon::SnapshotCreateHandler::new(
             store.clone(),
             mux.clone(),
+            resurreccion_daemon::EventEmitter::no_op(),
         )),
     );
     dispatcher.register(

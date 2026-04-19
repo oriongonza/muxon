@@ -170,6 +170,7 @@ fn workspace_open_returns_workspace_row() {
         verbs::WORKSPACE_OPEN,
         Arc::new(resurreccion_daemon::WorkspaceOpenHandler::new(
             store.clone(),
+            resurreccion_daemon::EventEmitter::no_op(),
         )),
     );
 

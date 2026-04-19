@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use crate::DagEdge; // defined in lib.rs — shared by both guarantee modules
+use crate::{DagEdge, Topology, Visitor, walk};
 
 /// The termination guarantee was violated: a cycle exists in the event DAG.
 ///
@@ -57,86 +55,57 @@ impl std::error::Error for TerminationViolation {}
 /// Returns [`TerminationViolation`] with the detected cycle's full
 /// node/event trace. Treat this as a fatal startup error.
 pub fn check_termination(edges: &[DagEdge]) -> Result<(), TerminationViolation> {
-    let mut adj: HashMap<&str, Vec<(&str, &str)>> = HashMap::new();
-    let mut all_nodes: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    let topology = Topology::new(edges);
+    walk(&topology, CycleVisitor::default())
+}
 
-    for e in edges {
-        all_nodes.insert(e.from);
-        all_nodes.insert(e.to);
-        adj.entry(e.from).or_default().push((e.to, e.event));
+/// Visitor that detects cycles and records the first one found.
+///
+/// Maintains a DFS path stack (node + incoming event) so that when a
+/// back-edge is found, the full cycle trace can be extracted immediately.
+#[derive(Default)]
+struct CycleVisitor {
+    /// (node_name, incoming_event) — mirrors the live DFS stack.
+    stack: Vec<(String, Option<String>)>,
+    violation: Option<TerminationViolation>,
+}
+
+impl Visitor for CycleVisitor {
+    type Answer = Result<(), TerminationViolation>;
+
+    fn enter(&mut self, node: &str, via: Option<(&str, &str)>) {
+        self.stack.push((node.to_string(), via.map(|(ev, _)| ev.to_string())));
     }
 
-    let mut visited: HashMap<&str, Color> = HashMap::new();
-    let mut path: Vec<(&str, &str)> = Vec::new();
+    fn back_edge(&mut self, _current: &str, event: &str, to: &str) {
+        if self.violation.is_some() {
+            return;
+        }
+        let start = self.stack.iter().position(|(n, _)| n == to).unwrap_or(0);
+        let cycle_segment = &self.stack[start..];
 
-    for &node in &all_nodes {
-        if !visited.contains_key(node) {
-            if let Some(err) = dfs(node, &adj, &mut visited, &mut path) {
-                return Err(err);
-            }
+        let mut trace: Vec<String> = Vec::with_capacity(cycle_segment.len() * 2 + 1);
+        trace.push(cycle_segment[0].0.clone());
+        for (node, incoming) in &cycle_segment[1..] {
+            trace.push(incoming.clone().unwrap());
+            trace.push(node.clone());
+        }
+        trace.push(event.to_string());
+        trace.push(to.to_string());
+
+        self.violation = Some(TerminationViolation { trace });
+    }
+
+    fn leave(&mut self, _node: &str) {
+        self.stack.pop();
+    }
+
+    fn finish(self) -> Result<(), TerminationViolation> {
+        match self.violation {
+            Some(v) => Err(v),
+            None => Ok(()),
         }
     }
-
-    Ok(())
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Color {
-    InStack,
-    Done,
-}
-
-fn dfs<'a>(
-    current: &'a str,
-    adj: &HashMap<&'a str, Vec<(&'a str, &'a str)>>,
-    visited: &mut HashMap<&'a str, Color>,
-    path: &mut Vec<(&'a str, &'a str)>,
-) -> Option<TerminationViolation> {
-    visited.insert(current, Color::InStack);
-
-    if let Some(neighbors) = adj.get(current) {
-        for &(neighbor, event) in neighbors {
-            match visited.get(neighbor).copied() {
-                Some(Color::InStack) => {
-                    return Some(build_violation(current, event, neighbor, path));
-                }
-                Some(Color::Done) => {}
-                None => {
-                    path.push((current, event));
-                    if let Some(err) = dfs(neighbor, adj, visited, path) {
-                        return Some(err);
-                    }
-                    path.pop();
-                }
-            }
-        }
-    }
-
-    visited.insert(current, Color::Done);
-    None
-}
-
-fn build_violation(
-    current: &str,
-    event: &str,
-    cycle_entry: &str,
-    path: &[(&str, &str)],
-) -> TerminationViolation {
-    let start = path
-        .iter()
-        .position(|(n, _)| *n == cycle_entry)
-        .unwrap_or(0);
-
-    let mut trace: Vec<String> = Vec::new();
-    for (n, e) in &path[start..] {
-        trace.push(n.to_string());
-        trace.push(e.to_string());
-    }
-    trace.push(current.to_string());
-    trace.push(event.to_string());
-    trace.push(cycle_entry.to_string());
-
-    TerminationViolation { trace }
 }
 
 #[cfg(test)]

@@ -2,43 +2,55 @@
 //!
 //! This is the seed of the future `rt-event-dag` crate.
 //!
-//! # Core invariant
+//! # Core model
 //!
-//! An **edge is an event type** — declaring [`DagEdge`] declares both the
-//! data that flows and the arc in the program's execution graph.
+//! An **edge is an event type**. [`DagEdge`] declares both the data that
+//! flows and the arc in the execution graph — one concept, two descriptions.
 //!
-//! # Two structural guarantees
+//! # Structural guarantees via walks
+//!
+//! Every guarantee is a [`walk`] over the topology with a specific visitor:
 //!
 //! ```text
-//! check_termination(edges)?;             // no cycles  → event propagation halts
-//! check_completeness(&declared, edges)?  // all wired  → every node is live
+//! walk(t, v) -> a
 //! ```
 //!
-//! Together they give a program whose execution graph is fully described,
-//! fully connected, and provably finite.
+//! - `t` — the topology (the program's wiring, derived from edges)
+//! - `v` — the visitor (what to do at each node; the programmer's only concern)
+//! - `a` — the answer (what the caller cares about)
+//!
+//! The two built-in guarantees:
+//!
+//! ```text
+//! check_termination(edges)?   // CycleVisitor    → no event can trigger itself
+//! check_completeness(d, edges)? // ReachabilityVisitor → every node is live
+//! ```
+//!
+//! New guarantees are new visitors. The walk and the topology never change.
+//!
+//! # Runtime
+//!
+//! The event-dispatch loop is the same pattern at runtime:
+//! each emitted event is an edge traversal, each handler is a visit.
 
 mod completeness;
 mod termination;
+mod walk;
 
 pub use completeness::{check_completeness, CompletenessViolation};
 pub use termination::{check_termination, TerminationViolation};
+pub use walk::{Topology, Visitor, walk};
 
 /// A directed edge in the event DAG.
 ///
-/// An edge **is** an event type. `from --[event]--> to` declares:
-/// - which node emits the event (`from`)
-/// - the event type name — the edge's identity (`event`)
-/// - which node handles it (`to`)
-///
-/// One event type may fan out to multiple sinks via multiple `DagEdge`
-/// values sharing the same `event` name.
+/// An edge **is** an event type. `from --[event]--> to` simultaneously:
+/// - names the event type flowing along this arc (`event`)
+/// - declares the emitting node (`from`)
+/// - declares the receiving node (`to`)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DagEdge {
-    /// Emitting node name.
     pub from: &'static str,
-    /// Event type name — the edge's identity.
     pub event: &'static str,
-    /// Receiving node name.
     pub to: &'static str,
 }
 

@@ -1245,7 +1245,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-aigents"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "bitflags",
@@ -1255,7 +1255,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-bundles"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "resurreccion-store",
@@ -1265,7 +1265,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-claude"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "reqwest",
@@ -1276,7 +1276,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-cli"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1287,7 +1287,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-codex"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "reqwest",
@@ -1298,7 +1298,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-core"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "blake3",
  "serde",
@@ -1308,7 +1308,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-daemon"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1330,8 +1330,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "resurreccion-dag"
+version = "0.6.0"
+
+[[package]]
 name = "resurreccion-dir"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "blake3",
@@ -1344,7 +1348,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-editor"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -1353,7 +1357,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-emacs"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "resurreccion-editor",
@@ -1361,8 +1365,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "resurreccion-federation"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "resurreccion-proto",
+ "resurreccion-ssh",
+ "serde",
+ "serde_json",
+ "ulid",
+]
+
+[[package]]
 name = "resurreccion-headless"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "resurreccion-proto",
@@ -1374,7 +1390,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-mux"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "bitflags",
  "serde",
@@ -1383,7 +1399,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-nvim"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "resurreccion-editor",
@@ -1393,7 +1409,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-planner"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "resurreccion-mux",
@@ -1407,7 +1423,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-proto"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "insta",
  "serde",
@@ -1419,11 +1435,11 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-remote"
-version = "0.1.0"
+version = "0.6.0"
 
 [[package]]
 name = "resurreccion-replay"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "resurreccion-store",
@@ -1433,7 +1449,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-search"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "rusqlite",
@@ -1443,7 +1459,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-shell"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -1451,8 +1467,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "resurreccion-ssh"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "resurreccion-proto",
+ "serde",
+ "serde_json",
+ "ulid",
+]
+
+[[package]]
 name = "resurreccion-store"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "blake3",
@@ -1465,7 +1492,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-timetravel"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "resurreccion-store",
@@ -1475,7 +1502,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-tui"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "pretty_assertions",
@@ -1485,7 +1512,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-zellij"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "resurreccion-mux",
@@ -1496,7 +1523,7 @@ dependencies = [
 
 [[package]]
 name = "resurreccion-zellij-plugin"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "serde_json",
 ]

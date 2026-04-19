@@ -17,5 +17,7 @@
 //! [`check_acyclic`] enforces the invariant at startup.
 
 mod cycle;
+mod wiring;
 
 pub use cycle::{check_acyclic, CycleError, DagEdge};
+pub use wiring::{check_wiring, WiringError};

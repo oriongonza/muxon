@@ -1301,7 +1301,7 @@ name = "resurreccion-core"
 version = "0.6.0"
 dependencies = [
  "blake3",
- "resurreccion-dag",
+ "rt-events-dag",
  "serde",
  "thiserror 2.0.18",
  "ulid",
@@ -1315,7 +1315,6 @@ dependencies = [
  "clap",
  "directories",
  "resurreccion-core",
- "resurreccion-dag",
  "resurreccion-dir",
  "resurreccion-mux",
  "resurreccion-planner",
@@ -1323,6 +1322,7 @@ dependencies = [
  "resurreccion-store",
  "resurreccion-zellij",
  "rt-events",
+ "rt-events-dag",
  "serde_json",
  "tempfile",
  "tokio",
@@ -1330,10 +1330,6 @@ dependencies = [
  "tracing-subscriber",
  "ulid",
 ]
-
-[[package]]
-name = "resurreccion-dag"
-version = "0.6.0"
 
 [[package]]
 name = "resurreccion-dir"
@@ -1547,6 +1543,10 @@ dependencies = [
 [[package]]
 name = "rt-events"
 version = "0.0.1"
+
+[[package]]
+name = "rt-events-dag"
+version = "0.1.0"
 
 [[package]]
 name = "rusqlite"

@@ -9,10 +9,10 @@
 //!
 //! | Name       | Role                                         |
 //! |------------|----------------------------------------------|
-//! | `protocol` | Protocol/verb layer — receives CLI commands  |
-//! | `mux`      | Multiplexer backend (Zellij)                 |
-//! | `store`    | Persistent storage for workspaces/snapshots  |
-//! | `recorder` | Durable event log (appends to the event table) |
+//! | `Protocol` | Protocol/verb layer — receives CLI commands  |
+//! | `Mux`      | Multiplexer backend (Zellij)                 |
+//! | `Store`    | Persistent storage for workspaces/snapshots  |
+//! | `Recorder` | Durable event log (appends to the event table) |
 //!
 //! # Structural guarantees
 //!
@@ -23,7 +23,12 @@ use resurreccion_core::events::{
     FocusChanged, LayoutChanged, PaneClosed, PaneOpened, RuntimeAttached, RuntimeDetached,
     SnapshotCreated, SnapshotRestored, WorkspaceClosed, WorkspaceOpened,
 };
-use resurreccion_dag::{check_completeness, check_termination, edges, DagEdge};
+use rt_events_dag::{check_completeness, check_termination, edges, node, node_id, DagEdge, NodeId};
+
+node!(Protocol);
+node!(Mux);
+node!(Store);
+node!(Recorder);
 
 /// All event arcs in the daemon.
 ///
@@ -32,22 +37,27 @@ use resurreccion_dag::{check_completeness, check_termination, edges, DagEdge};
 /// compile error at the edge that references it.
 pub const EDGES: &[DagEdge] = edges![
     // Workspace lifecycle — protocol layer emits; store records
-    WorkspaceOpened:  protocol  -> recorder,
-    WorkspaceClosed:  protocol  -> recorder,
+    WorkspaceOpened:  Protocol -> Recorder,
+    WorkspaceClosed:  Protocol -> Recorder,
     // Multiplexer lifecycle — mux backend emits; store records
-    RuntimeAttached:  mux       -> recorder,
-    RuntimeDetached:  mux       -> recorder,
-    PaneOpened:       mux       -> recorder,
-    PaneClosed:       mux       -> recorder,
-    FocusChanged:     mux       -> recorder,
-    LayoutChanged:    mux       -> recorder,
+    RuntimeAttached:  Mux      -> Recorder,
+    RuntimeDetached:  Mux      -> Recorder,
+    PaneOpened:       Mux      -> Recorder,
+    PaneClosed:       Mux      -> Recorder,
+    FocusChanged:     Mux      -> Recorder,
+    LayoutChanged:    Mux      -> Recorder,
     // Snapshot outcomes — store emits after commit; recorder logs them
-    SnapshotCreated:  store     -> recorder,
-    SnapshotRestored: store     -> recorder,
+    SnapshotCreated:  Store    -> Recorder,
+    SnapshotRestored: Store    -> Recorder,
 ];
 
-/// Node names explicitly declared in this topology.
-const NODES: &[&str] = &["protocol", "mux", "store", "recorder"];
+/// Node identities explicitly declared in this topology.
+const NODES: &[NodeId] = &[
+    node_id::<Protocol>(),
+    node_id::<Mux>(),
+    node_id::<Store>(),
+    node_id::<Recorder>(),
+];
 
 /// Verify structural integrity of the event topology.
 ///
